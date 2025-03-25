@@ -5,22 +5,26 @@ import hashlib
 import random
 import sys
 from copy import deepcopy
+from handleData import *
 
 m = 7
+#Sample Path, can be passed to script as an argument later
+path = "./sample_data/sample_listings_cleaned.csv"
 # The class DataStore is used to store the key value pairs at each node
 
 class DataStore:
     def __init__(self):
         self.data = {}
-    def insert(self, key, value):
-        self.data[key] = value
+    def insert(self, key, listing_id):
+        listing = create_listing_object(path, listing_id)
+        self.data[key] = stringify_listing_data(listing)
     def delete(self, key):
         del self.data[key]
     def search(self, search_key):
         # print('Search key', search_key)
 
         if search_key in self.data:
-            return self.data[search_key]
+            return parse_listing_data(self.data[search_key])
         else:
             # print('Not found')
             print(self.data)
@@ -67,8 +71,8 @@ class Node:
             # print('Inserting in my datastore', str(self.nodeinfo))
             data = message.split('|')[1].split(":")
             key = data[0]
-            value = data[1]
-            self.data_store.insert(key, value)
+            listing_id = data[1]
+            self.data_store.insert(key, listing_id)
             result = 'Inserted'
 
         if operation == "delete_server":
