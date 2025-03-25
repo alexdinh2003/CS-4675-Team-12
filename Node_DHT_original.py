@@ -54,166 +54,93 @@ class Node:
         digest = int(digest, 16) % pow(2,m)
         return digest
 
-    def process_requests(self, message: str) -> str:
+    def process_requests(self, message:str)->str:
+        '''
+        The process_requests function is used to manage the differnt requests coming to any node it checks the mesaage
+        and then calls the required function accordingly
+        '''
         operation = message.split("|")[0]
-        args = message.split("|")[1:]
+        args = []
+        if( len(message.split("|")) > 1):
+            args = message.split("|")[1:]
         result = "Done"
-
-        # === Airbnb-Specific Logic with Correct Chord Routing ===
-
-        if operation == "add_listing":
-            listing_json = json.loads(args[0])
-            listing_id = listing_json["id"]
-            key = f"listing:{listing_id}"
-            key_hash = self.hash(key)
-            succ = self.find_successor(key_hash)
-            ip, port = self.get_ip_port(succ)
-
-            if ip == self.ip and port == self.port:
-                self.data_store.insert(key, json.dumps(listing_json))
-
-                # Also update city index in correct node
-                city = listing_json.get("location", "unknown").lower()
-                city_key = f"location:{city}"
-                city_key_hash = self.hash(city_key)
-                city_succ = self.find_successor(city_key_hash)
-                ip2, port2 = self.get_ip_port(city_succ)
-
-                if ip2 == self.ip and port2 == self.port:
-                    city_list = json.loads(self.data_store.data.get(city_key, "[]"))
-                    if listing_id not in city_list:
-                        city_list.append(listing_id)
-                        self.data_store.data[city_key] = json.dumps(city_list)
-                else:
-                    send_message(ip2, port2, f"update_city_index|{city}|{listing_id}")
-
-                result = f"Listing {listing_id} added."
-            else:
-                result = send_message(ip, port, message)
-
-        elif operation == "update_city_index":
-            city = args[0].lower()
-            listing_id = args[1]
-            city_key = f"location:{city}"
-            city_list = json.loads(self.data_store.data.get(city_key, "[]"))
-            if listing_id not in city_list:
-                city_list.append(listing_id)
-                self.data_store.data[city_key] = json.dumps(city_list)
-            result = f"City index updated for {city}"
-
-        elif operation == "get_listings_by_location":
-            city = args[0].lower()
-            city_key = f"location:{city}"
-            key_hash = self.hash(city_key)
-            succ = self.find_successor(key_hash)
-            ip, port = self.get_ip_port(succ)
-
-            if ip == self.ip and port == self.port:
-                result = self.data_store.data.get(city_key, "[]")
-            else:
-                result = send_message(ip, port, message)
-
-        elif operation == "book_listing":
-            booking_json = json.loads(args[0])
-            booking_id = booking_json["id"]
-            key = f"booking:{booking_id}"
-            key_hash = self.hash(key)
-            succ = self.find_successor(key_hash)
-            ip, port = self.get_ip_port(succ)
-
-            if ip == self.ip and port == self.port:
-                self.data_store.insert(key, json.dumps(booking_json))
-                result = f"Booking {booking_id} added."
-            else:
-                result = send_message(ip, port, message)
-
-        elif operation == "write_review":
-            listing_id = args[0]
-            review = args[1]
-            key = f"review:{listing_id}"
-            key_hash = self.hash(key)
-            succ = self.find_successor(key_hash)
-            ip, port = self.get_ip_port(succ)
-
-            if ip == self.ip and port == self.port:
-                review_list = json.loads(self.data_store.data.get(key, "[]"))
-                review_list.append(review)
-                self.data_store.data[key] = json.dumps(review_list)
-                result = "Review added."
-            else:
-                result = send_message(ip, port, message)
-
-        elif operation == "get_reviews":
-            listing_id = args[0]
-            key = f"review:{listing_id}"
-            key_hash = self.hash(key)
-            succ = self.find_successor(key_hash)
-            ip, port = self.get_ip_port(succ)
-
-            if ip == self.ip and port == self.port:
-                result = self.data_store.data.get(key, "[]")
-            else:
-                result = send_message(ip, port, message)
-
-        # === Existing Chord DHT Logic ===
-
-        elif operation == 'insert_server':
-            data = args[0].split(":")
+        if operation == 'insert_server':
+            # print('Inserting in my datastore', str(self.nodeinfo))
+            data = message.split('|')[1].split(":")
             key = data[0]
             value = data[1]
             self.data_store.insert(key, value)
             result = 'Inserted'
 
-        elif operation == "delete_server":
-            self.data_store.delete(args[0])
+        if operation == "delete_server":
+            # print('deleting in my datastore', str(self.nodeinfo))
+            data = message.split('|')[1]
+            self.data_store.data.pop(data)
             result = 'Deleted'
 
-        elif operation == "search_server":
-            data = args[0]
-            value = self.data_store.search(data)
-            result = value if value else "NOT FOUND"
+        if operation == "search_server":
+            # print('searching in my datastore', str(self.nodeinfo))
+            data = message.split('|')[1]
+            if data in self.data_store.data:
+                return self.data_store.data[data]
+            else:
+                return "NOT FOUND"
 
-        elif operation == "send_keys":
+        if operation == "send_keys":
             id_of_joining_node = int(args[0])
             result = self.send_keys(id_of_joining_node)
 
-        elif operation == "insert":
-            data = args[0].split(":")
+        if operation == "insert":
+            # print("finding hop to insert the key" , str(self.nodeinfo) )
+            data = message.split('|')[1].split(":")
             key = data[0]
             value = data[1]
-            result = self.insert_key(key, value)
+            result = self.insert_key(key,value)
 
-        elif operation == "delete":
-            result = self.delete_key(args[0])
 
-        elif operation == "search":
-            result = self.search_key(args[0])
+        if operation == "delete":
+            # print("finding hop to delete the key" , str(self.nodeinfo) )
+            data = message.split('|')[1]
+            result = self.delete_key(data)
 
-        elif operation == "join_request":
-            result = self.join_request_from_other_node(int(args[0]))
 
-        elif operation == "find_predecessor":
+        if operation == 'search':
+            # print('Seaching...')
+            data = message.split('|')[1]
+            result = self.search_key(data)
+
+
+
+        if operation == "join_request":
+            # print("join request recv")
+            result  = self.join_request_from_other_node(int(args[0]))
+
+        if operation == "find_predecessor":
+            # print("finding predecessor")
             result = self.find_predecessor(int(args[0]))
 
-        elif operation == "find_successor":
+        if operation == "find_successor":
+            # print("finding successor")
             result = self.find_successor(int(args[0]))
 
-        elif operation == "get_successor":
+        if operation == "get_successor":
+            # print("getting successor")
             result = self.get_successor()
 
-        elif operation == "get_predecessor":
+        if operation == "get_predecessor":
+            # print("getting predecessor")
             result = self.get_predecessor()
 
-        elif operation == "get_id":
+        if operation == "get_id":
+            # print("getting id")
             result = self.get_id()
 
-        elif operation == "notify":
-            self.notify(int(args[0]), args[1], args[2])
-            result = "Notified"
+        if operation == "notify":
+            # print("notifiying")
+            self.notify(int(args[0]),args[1],args[2])
 
+        # print(result)
         return str(result)
-
-
 
 
     def serve_requests(self, conn, addr):

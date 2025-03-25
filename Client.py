@@ -1,59 +1,87 @@
 import socket
+import json
+
+def send(ip, port, message):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((ip, port))
+    sock.send(message.encode('utf-8'))
+    data = sock.recv(4096).decode('utf-8')
+    sock.close()
+    return data
 
 def main():
-	#ip = input("Give the ip address of a node")
-	ip = "127.0.0.1"
-	#port = 9000
-	port = int(input("Give the port number of a node"))
-	
-	while(True):
-		print("************************MENU*************************")
-		print("PRESS ***********************************************")
-		print("1. TO ENTER *****************************************")
-		print("2. TO SHOW ******************************************")
-		print("3. TO DELTE *****************************************")
-		print("4. TO EXIT ******************************************")
-		print("*****************************************************")
-		choice = input()
-		sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    ip = "127.0.0.1"
+    port = int(input("Enter the port number of the node to connect to: "))
 
-		sock.connect((ip,port))
+    while True:
+        print("\n========= MENU =========")
+        print("1. Add a Listing")
+        print("2. Get Listings by City")
+        print("3. Book a Listing")
+        print("4. Write a Review")
+        print("5. Get Reviews for a Listing")
+        print("6. Exit")
+        print("========================")
+        choice = input("Your choice: ")
 
-		if(choice == '1'):
-			key = input("ENTER THE KEY : ")
-			val = input("ENTER THE VALUE : ")
-			message = "insert|" + str(key) + ":" + str(val)
-			sock.send(message.encode('utf-8'))
-			data = sock.recv(1024)
-			data = str(data.decode('utf-8'))
-			print(data)
+        if choice == '1':
+            listing = {
+                "id": input("Listing ID: "),
+                "title": input("Title: "),
+                "host_id": input("Host ID: "),
+                "host_name": input("Host Name: "),
+                "location": input("City/Neighborhood: "),
+                "latitude": float(input("Latitude: ")),
+                "longitude": float(input("Longitude: ")),
+                "room_type": input("Room Type: "),
+                "price": float(input("Price per night: ")),
+                "minimum_nights": int(input("Minimum nights: ")),
+                "number_of_reviews": int(input("Number of reviews: ")),
+                "last_review": input("Last review (YYYY-MM-DD): "),
+                "reviews_per_month": float(input("Reviews/month: ")),
+                "calculated_host_listings_count": int(input("Host's listing count: ")),
+                "availability_365": int(input("Availability (days/year): "))
+            }
+            msg = "add_listing|" + json.dumps(listing)
+            print(send(ip, port, msg))
 
-		elif(choice == '2'):
-			key = input("ENTER THE KEY")
-			message = "search|" + str(key)
-			sock.send(message.encode('utf-8'))
-			data = sock.recv(1024)
-			data = str(data.decode('utf-8'))
-			print("The value corresponding to the key is : ",data)
+        elif choice == '2':
+            city = input("Enter city name: ")
+            msg = "get_listings_by_location|" + city
+            listing_ids = json.loads(send(ip, port, msg))
+            print("Listings in", city, ":", listing_ids)
 
-		elif(choice == '3'):
-			key = input("ENTER THE KEY")
-			message = "delete|" + str(key)
-			sock.send(message.encode('utf-8'))
-			data = sock.recv(1024)
-			data = str(data.decode('utf-8'))
-			print(data)
+        elif choice == '3':
+            booking = {
+                "id": input("Booking ID: "),
+                "listing_id": input("Listing ID: "),
+                "guest": input("Guest User ID: "),
+                "date": input("Date (YYYY-MM-DD): ")
+            }
+            msg = "book_listing|" + json.dumps(booking)
+            print(send(ip, port, msg))
 
-		elif(choice == '4'):
-			print("Closing the socket")
-			sock.close()
-			print("Exiting Client")
-			exit()
-			
-		else:
-			print("INCORRECT CHOICE")
+        elif choice == '4':
+            listing_id = input("Listing ID: ")
+            review = input("Your review: ")
+            msg = f"write_review|{listing_id}|{review}"
+            print(send(ip, port, msg))
 
+        elif choice == '5':
+            listing_id = input("Listing ID: ")
+            msg = f"get_reviews|{listing_id}"
+            reviews = json.loads(send(ip, port, msg))
+            print(f"Reviews for listing {listing_id}:")
+            for r in reviews:
+                print("-", r)
 
+        elif choice == '6':
+            print("Exiting client.")
+            break
+
+        else:
+            print("Invalid choice. Please try again.")
 
 if __name__ == '__main__':
-	main()
+    main()
+
