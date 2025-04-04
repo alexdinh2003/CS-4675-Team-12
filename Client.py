@@ -20,7 +20,8 @@ def main():
         print("3. Book a Listing")
         print("4. Write a Review")
         print("5. Get Reviews for a Listing")
-        print("6. Exit")
+        print("6. Get Listings by City + Zipcode")
+        print("7. Exit")
         print("========================")
         choice = input("Your choice: ")
 
@@ -40,16 +41,22 @@ def main():
                 "last_review": input("Last review (YYYY-MM-DD): "),
                 "reviews_per_month": float(input("Reviews/month: ")),
                 "calculated_host_listings_count": int(input("Host's listing count: ")),
-                "availability_365": int(input("Availability (days/year): "))
+                "availability_365": int(input("Availability (days/year): ")),
+                "zipcode": int(input("Zipcode: "))
             }
             msg = "add_listing|" + json.dumps(listing)
             print(send(ip, port, msg))
 
         elif choice == '2':
-            city = input("Enter city name: ")
-            msg = "get_listings_by_location|" + city
+            city = input("Enter city name: ").strip()
+            msg = f"get_listings_by_location|{city}"
             listing_ids = json.loads(send(ip, port, msg))
-            print("Listings in", city, ":", listing_ids)
+            if listing_ids:
+                print(f"Listings in {city}:")
+                for lid in listing_ids:
+                    print("-", lid)
+            else:
+                print(f"No listings found in {city}.")
 
         elif choice == '3':
             booking = {
@@ -72,10 +79,25 @@ def main():
             msg = f"get_reviews|{listing_id}"
             reviews = json.loads(send(ip, port, msg))
             print(f"Reviews for listing {listing_id}:")
-            for r in reviews:
-                print("-", r)
+            if reviews:
+                for r in reviews:
+                    print("-", r)
+            else:
+                print("No reviews yet.")
 
         elif choice == '6':
+            city = input("Enter city name: ").strip()
+            zipcode = input("Enter zipcode: ").strip()
+            msg = f"get_listings_by_location_zip|{city}|{zipcode}"
+            listing_ids = json.loads(send(ip, port, msg))
+            print(f"Listings in {city}, {zipcode}:")
+            if listing_ids:
+                for lid in listing_ids:
+                    print("-", lid)
+            else:
+                print("No listings found for this location and zipcode.")
+
+        elif choice == '7':
             print("Exiting client.")
             break
 
@@ -84,4 +106,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

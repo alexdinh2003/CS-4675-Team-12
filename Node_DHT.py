@@ -59,8 +59,6 @@ class Node:
         args = message.split("|")[1:]
         result = "Done"
 
-        # === Airbnb-Specific Logic with Correct Chord Routing ===
-
         if operation == "add_listing":
             listing_json = json.loads(args[0])
             listing_id = listing_json["id"]
@@ -72,7 +70,7 @@ class Node:
             if ip == self.ip and port == self.port:
                 self.data_store.insert(key, json.dumps(listing_json))
 
-                # Also update city index in correct node
+                # ✅ Use "location" not "city"
                 city = listing_json.get("location", "unknown").lower()
                 city_key = f"location:{city}"
                 city_key_hash = self.hash(city_key)
@@ -86,6 +84,35 @@ class Node:
                         self.data_store.data[city_key] = json.dumps(city_list)
                 else:
                     send_message(ip2, port2, f"update_city_index|{city}|{listing_id}")
+
+                # Zipcode Index
+                zipcode = str(int(float(listing_json.get("zipcode", 0))))
+                zip_key = f"zipcode:{zipcode}"
+                zip_key_hash = self.hash(zip_key)
+                zip_succ = self.find_successor(zip_key_hash)
+                ip3, port3 = self.get_ip_port(zip_succ)
+
+                if ip3 == self.ip and port3 == self.port:
+                    zip_list = json.loads(self.data_store.data.get(zip_key, "[]"))
+                    if listing_id not in zip_list:
+                        zip_list.append(listing_id)
+                        self.data_store.data[zip_key] = json.dumps(zip_list)
+                else:
+                    send_message(ip3, port3, f"update_zipcode_index|{zipcode}|{listing_id}")
+
+                # Composite Index: City + Zip
+                composite_key = f"location_zip:{city}|{zipcode}"
+                composite_key_hash = self.hash(composite_key)
+                composite_succ = self.find_successor(composite_key_hash)
+                ip4, port4 = self.get_ip_port(composite_succ)
+
+                if ip4 == self.ip and port4 == self.port:
+                    composite_list = json.loads(self.data_store.data.get(composite_key, "[]"))
+                    if listing_id not in composite_list:
+                        composite_list.append(listing_id)
+                        self.data_store.data[composite_key] = json.dumps(composite_list)
+                else:
+                    send_message(ip4, port4, f"update_location_zip_index|{city}|{zipcode}|{listing_id}")
 
                 result = f"Listing {listing_id} added."
             else:
@@ -101,6 +128,27 @@ class Node:
                 self.data_store.data[city_key] = json.dumps(city_list)
             result = f"City index updated for {city}"
 
+        elif operation == "update_zipcode_index":
+            zipcode = args[0]
+            listing_id = args[1]
+            zip_key = f"zipcode:{zipcode}"
+            zip_list = json.loads(self.data_store.data.get(zip_key, "[]"))
+            if listing_id not in zip_list:
+                zip_list.append(listing_id)
+                self.data_store.data[zip_key] = json.dumps(zip_list)
+            result = f"Zipcode index updated for {zipcode}"
+
+        elif operation == "update_location_zip_index":
+            city = args[0].lower()  # ✅ Already using .lower()
+            zipcode = args[1]
+            listing_id = args[2]
+            composite_key = f"location_zip:{city}|{zipcode}"
+            composite_list = json.loads(self.data_store.data.get(composite_key, "[]"))
+            if listing_id not in composite_list:
+                composite_list.append(listing_id)
+                self.data_store.data[composite_key] = json.dumps(composite_list)
+            result = f"Location+Zip index updated for {city} {zipcode}"
+
         elif operation == "get_listings_by_location":
             city = args[0].lower()
             city_key = f"location:{city}"
@@ -110,6 +158,19 @@ class Node:
 
             if ip == self.ip and port == self.port:
                 result = self.data_store.data.get(city_key, "[]")
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "get_listings_by_location_zip":
+            city = args[0].lower()
+            zipcode = args[1]
+            composite_key = f"location_zip:{city}|{zipcode}"
+            key_hash = self.hash(composite_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                result = self.data_store.data.get(composite_key, "[]")
             else:
                 result = send_message(ip, port, message)
 
@@ -155,8 +216,7 @@ class Node:
             else:
                 result = send_message(ip, port, message)
 
-        # === Existing Chord DHT Logic ===
-
+        # Remaining default Chord operations...
         elif operation == 'insert_server':
             data = args[0].split(":")
             key = data[0]
@@ -212,9 +272,6 @@ class Node:
             result = "Notified"
 
         return str(result)
-
-
-
 
     def serve_requests(self, conn, addr):
         '''
