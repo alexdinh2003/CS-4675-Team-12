@@ -6,10 +6,11 @@ import random
 import sys
 from copy import deepcopy
 import json
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
+import os
 
 m = 7
-#Sample Path, can be passed to script as an argument later
-path = "./sample_data/sample_listings_cleaned.csv"
 # The class DataStore is used to store the key value pairs at each node
 
 class DataStore:
@@ -307,6 +308,13 @@ class Node:
         thread_for_stabalize.start()
         thread_for_fix_finger = threading.Thread(target=  self.fix_fingers)
         thread_for_fix_finger.start()
+
+        # Start the HTTP server in a separate thread
+        thread_for_http_server = threading.Thread(
+            target=self.start_http_server
+        )
+        thread_for_http_server.start() 
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.nodeinfo.ip, self.nodeinfo.port))
@@ -594,6 +602,16 @@ class Node:
 
     def get_forward_distance_2nodes(self,node2,node1):
         return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)
+    
+    def start_http_server(self):
+        '''
+        Start a simple HTTP server to serve files from the current directory.
+        '''
+        os.chdir('./frontend/dist')
+        handler = SimpleHTTPRequestHandler
+        with TCPServer(("", 8080), handler) as httpd:
+            print(f"Serving frontend on http://localhost:8080")
+            httpd.serve_forever()
 # The class FingerTable is responsible for managing the finger table of each node.
 class FingerTable:
     '''
