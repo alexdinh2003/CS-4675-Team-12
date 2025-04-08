@@ -16,16 +16,15 @@ m = 7
 class DataStore:
     def __init__(self):
         self.data = {}
-    def insert(self, key, listing_id):
-        listing = create_listing_object(path, listing_id)
-        self.data[key] = stringify_listing_data(listing)
+    def insert(self, key, value):
+        self.data[key] = value
     def delete(self, key):
         del self.data[key]
     def search(self, search_key):
         # print('Search key', search_key)
 
         if search_key in self.data:
-            return parse_listing_data(self.data[search_key])
+            return self.data[search_key]
         else:
             # print('Not found')
             print(self.data)
@@ -606,12 +605,34 @@ class Node:
     def start_http_server(self):
         '''
         Start a simple HTTP server to serve files from the current directory.
+        Dynamically inject the node's port into the frontend.
         '''
-        os.chdir('./frontend/dist')
-        handler = SimpleHTTPRequestHandler
-        with TCPServer(("", 8080), handler) as httpd:
-            print(f"Serving frontend on http://localhost:8080")
+        os.chdir('./frontend/dist')  # Change directory to the frontend build folder
+
+        class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
+            def __init__(self, *args, node_port=None, **kwargs):
+                self.node_port = node_port
+                super().__init__(*args, **kwargs)
+
+            def do_GET(self):
+                if self.path == "/" or self.path == "/index.html":
+                    # Inject the node's port into the HTML
+                    with open("index.html", "r") as file:
+                        html = file.read()
+                    html = html.replace("{{NODE_PORT}}", str(self.node_port))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html")
+                    self.end_headers()
+                    self.wfile.write(html.encode("utf-8"))
+                else:
+                    super().do_GET()
+
+        handler = CustomHTTPRequestHandler
+        http_port = 8080  # Explicitly set the HTTP server port
+        with TCPServer(("", http_port), lambda *args, **kwargs: handler(*args, node_port=self.port, **kwargs)) as httpd:
+            print(f"Serving frontend on http://localhost:{http_port}")
             httpd.serve_forever()
+
 # The class FingerTable is responsible for managing the finger table of each node.
 class FingerTable:
     '''

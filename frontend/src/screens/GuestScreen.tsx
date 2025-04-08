@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { handleAddressEnter } from "../utils/google-maps";
-import { requestHashes } from "../utils/hash";
+import { requestHashes } from "../utils/handleListings";
 
 const GuestScreen: React.FC = () => {
     const navigate = useNavigate();

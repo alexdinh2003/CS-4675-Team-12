@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { requestMyListings } from "../utils/hash";
+import { requestMyListings } from "../utils/handleListings";
 
 const HostScreen: React.FC = () => {
   const navigate = useNavigate();

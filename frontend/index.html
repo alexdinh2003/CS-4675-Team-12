@@ -9,5 +9,10 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      const NODE_PORT = "{{NODE_PORT}}";
+      console.log("Node is running on port:", NODE_PORT);
+      window.NODE_PORT = NODE_PORT;
+    </script>
   </body>
 </html>

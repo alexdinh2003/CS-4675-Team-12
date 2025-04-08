@@ -1,5 +1,4 @@
 //import { handleAddressEnter } from "./google-maps";
-
 export const requestHashes = (addressInfo: { city: string; postal_code: string; latitude: number; longitude: number } | null) => {
     if (!addressInfo) {
         return null;
@@ -7,7 +6,7 @@ export const requestHashes = (addressInfo: { city: string; postal_code: string; 
 
     //const { city, postal_code, latitude, longitude } = addressInfo;
 
-    //This is where we can send request to get hashes with the same city and postal code.
+    //This is where we can send request to get enterListinges with the same city and postal code.
     //Will also call to get corresponding data here instead of returning the following dummy data.
 
     const listing1 = {"id":"l1","title":"Cozy Seattle Room","host_id":"u1","host_name":"Alice","location":"Seattle","latitude":47.6,"longitude":-122.3,"room_type":"Private room","price":85,"minimum_nights":2,"number_of_reviews":12,"last_review":"2023-01-01","reviews_per_month":0.3,"calculated_host_listings_count":1,"availability_365":200}
@@ -17,18 +16,13 @@ export const requestHashes = (addressInfo: { city: string; postal_code: string; 
     return [listing1, listing2, listing3];
 };
 
-export const hash = async (listingData: { listingName: string, address: string, hostName: string, roomType: string, minimumNights: string } | null) => {
+export const enterListing = async (listingData: { listingName: string, address: string, hostName: string, roomType: string, minimumNights: string } | null) => {
     if (!listingData) {
         return null;
     }
 
-    // const { listingName, address, hostName, roomType, minimumNights } = listingData;
-    // const { city, postal_code, latitude, longitude } = await handleAddressEnter(address).catch((error) => {
-    //     console.error("Error fetching address information:", error);
-    //     return null;
-    // }); 
-
-    //This is where we can hash the listing data.
+    // Format the listing data into the required string format
+    //const listingString = `add_listing|${JSON.stringify(listingData)}`;
 };
 
 export const requestMyListings = () => {
