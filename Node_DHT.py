@@ -24,7 +24,7 @@ class DataStore:
         else:
             # print('Not found')
             print(self.data)
-            return None
+            return None            
 #Class represents the actual Node, it stores ip and port of a node
 class NodeInfo:
     def __init__(self, ip, port):
@@ -289,7 +289,7 @@ class Node:
         data = send_message(ip , port, "get_successor") # Note that this returns the direct successor
         return data
 
-    def closest_preceding_node(self, search_id:str) -> Node:
+    def closest_preceding_node(self, search_id:str): # add -> Node
         closest_node = None
         min_distance = pow(2,m)+1
         for i in list(reversed(range(m))):
@@ -458,7 +458,7 @@ class Node:
 
 
     def get_forward_distance_2nodes(self,node2,node1):
-        return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)
+        return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)    
 # The class FingerTable is responsible for managing the finger table of each node.
 class FingerTable:
     '''
@@ -471,7 +471,7 @@ class FingerTable:
             x = pow(2, i)
             entry = (my_id + x) % pow(2,m)
             node = None
-            self.table.append( (entry, node) )
+            self.table.append( [entry, node] )
 
     def print(self):
         '''
