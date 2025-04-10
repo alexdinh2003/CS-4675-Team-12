@@ -5,6 +5,10 @@ import hashlib
 import random
 import sys
 from copy import deepcopy
+import json
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
+import os
 
 m = 7
 # The class DataStore is used to store the key value pairs at each node
@@ -24,7 +28,7 @@ class DataStore:
         else:
             # print('Not found')
             print(self.data)
-            return None            
+            return None
 #Class represents the actual Node, it stores ip and port of a node
 class NodeInfo:
     def __init__(self, ip, port):
@@ -53,94 +57,224 @@ class Node:
         digest = int(digest, 16) % pow(2,m)
         return digest
 
-    def process_requests(self, message:str)->str:
-        '''
-        The process_requests function is used to manage the differnt requests coming to any node it checks the mesaage
-        and then calls the required function accordingly
-        '''
+    def process_requests(self, message: str) -> str:
         operation = message.split("|")[0]
-        args = []
-        if( len(message.split("|")) > 1):
-            args = message.split("|")[1:]
+        args = message.split("|")[1:]
         result = "Done"
-        if operation == 'insert_server':
-            # print('Inserting in my datastore', str(self.nodeinfo))
-            data = message.split('|')[1].split(":")
+
+        if operation == "add_listing":
+            listing_json = json.loads(args[0])
+            listing_id = listing_json["id"]
+            key = f"listing:{listing_id}"
+            key_hash = self.hash(key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                self.data_store.insert(key, json.dumps(listing_json))
+
+                # ✅ Use "location" not "city"
+                city = listing_json.get("location", "unknown").lower()
+                city_key = f"location:{city}"
+                city_key_hash = self.hash(city_key)
+                city_succ = self.find_successor(city_key_hash)
+                ip2, port2 = self.get_ip_port(city_succ)
+
+                if ip2 == self.ip and port2 == self.port:
+                    city_list = json.loads(self.data_store.data.get(city_key, "[]"))
+                    if listing_id not in city_list:
+                        city_list.append(listing_id)
+                        self.data_store.data[city_key] = json.dumps(city_list)
+                else:
+                    send_message(ip2, port2, f"update_city_index|{city}|{listing_id}")
+
+                # Zipcode Index
+                zipcode = str(int(float(listing_json.get("zipcode", 0))))
+                zip_key = f"zipcode:{zipcode}"
+                zip_key_hash = self.hash(zip_key)
+                zip_succ = self.find_successor(zip_key_hash)
+                ip3, port3 = self.get_ip_port(zip_succ)
+
+                if ip3 == self.ip and port3 == self.port:
+                    zip_list = json.loads(self.data_store.data.get(zip_key, "[]"))
+                    if listing_id not in zip_list:
+                        zip_list.append(listing_id)
+                        self.data_store.data[zip_key] = json.dumps(zip_list)
+                else:
+                    send_message(ip3, port3, f"update_zipcode_index|{zipcode}|{listing_id}")
+
+                # Composite Index: City + Zip
+                composite_key = f"location_zip:{city}|{zipcode}"
+                composite_key_hash = self.hash(composite_key)
+                composite_succ = self.find_successor(composite_key_hash)
+                ip4, port4 = self.get_ip_port(composite_succ)
+
+                if ip4 == self.ip and port4 == self.port:
+                    composite_list = json.loads(self.data_store.data.get(composite_key, "[]"))
+                    if listing_id not in composite_list:
+                        composite_list.append(listing_id)
+                        self.data_store.data[composite_key] = json.dumps(composite_list)
+                else:
+                    send_message(ip4, port4, f"update_location_zip_index|{city}|{zipcode}|{listing_id}")
+
+                result = f"Listing {listing_id} added."
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "update_city_index":
+            city = args[0].lower()
+            listing_id = args[1]
+            city_key = f"location:{city}"
+            city_list = json.loads(self.data_store.data.get(city_key, "[]"))
+            if listing_id not in city_list:
+                city_list.append(listing_id)
+                self.data_store.data[city_key] = json.dumps(city_list)
+            result = f"City index updated for {city}"
+
+        elif operation == "update_zipcode_index":
+            zipcode = args[0]
+            listing_id = args[1]
+            zip_key = f"zipcode:{zipcode}"
+            zip_list = json.loads(self.data_store.data.get(zip_key, "[]"))
+            if listing_id not in zip_list:
+                zip_list.append(listing_id)
+                self.data_store.data[zip_key] = json.dumps(zip_list)
+            result = f"Zipcode index updated for {zipcode}"
+
+        elif operation == "update_location_zip_index":
+            city = args[0].lower()  # ✅ Already using .lower()
+            zipcode = args[1]
+            listing_id = args[2]
+            composite_key = f"location_zip:{city}|{zipcode}"
+            composite_list = json.loads(self.data_store.data.get(composite_key, "[]"))
+            if listing_id not in composite_list:
+                composite_list.append(listing_id)
+                self.data_store.data[composite_key] = json.dumps(composite_list)
+            result = f"Location+Zip index updated for {city} {zipcode}"
+
+        elif operation == "get_listings_by_location":
+            city = args[0].lower()
+            city_key = f"location:{city}"
+            key_hash = self.hash(city_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                result = self.data_store.data.get(city_key, "[]")
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "get_listings_by_location_zip":
+            city = args[0].lower()
+            zipcode = args[1]
+            composite_key = f"location_zip:{city}|{zipcode}"
+            key_hash = self.hash(composite_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                result = self.data_store.data.get(composite_key, "[]")
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "book_listing":
+            booking_json = json.loads(args[0])
+            booking_id = booking_json["id"]
+            key = f"booking:{booking_id}"
+            key_hash = self.hash(key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                self.data_store.insert(key, json.dumps(booking_json))
+                result = f"Booking {booking_id} added."
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "write_review":
+            listing_id = args[0]
+            review = args[1]
+            key = f"review:{listing_id}"
+            key_hash = self.hash(key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                review_list = json.loads(self.data_store.data.get(key, "[]"))
+                review_list.append(review)
+                self.data_store.data[key] = json.dumps(review_list)
+                result = "Review added."
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "get_reviews":
+            listing_id = args[0]
+            key = f"review:{listing_id}"
+            key_hash = self.hash(key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                result = self.data_store.data.get(key, "[]")
+            else:
+                result = send_message(ip, port, message)
+
+        # Remaining default Chord operations...
+        elif operation == 'insert_server':
+            data = args[0].split(":")
             key = data[0]
-            value = data[1]
-            self.data_store.insert(key, value)
+            listing_id = data[1]
+            self.data_store.insert(key, listing_id)
             result = 'Inserted'
 
-        if operation == "delete_server":
-            # print('deleting in my datastore', str(self.nodeinfo))
-            data = message.split('|')[1]
-            self.data_store.data.pop(data)
+        elif operation == "delete_server":
+            self.data_store.delete(args[0])
             result = 'Deleted'
 
-        if operation == "search_server":
-            # print('searching in my datastore', str(self.nodeinfo))
-            data = message.split('|')[1]
-            if data in self.data_store.data:
-                return self.data_store.data[data]
-            else:
-                return "NOT FOUND"
+        elif operation == "search_server":
+            data = args[0]
+            value = self.data_store.search(data)
+            result = value if value else "NOT FOUND"
 
-        if operation == "send_keys":
+        elif operation == "send_keys":
             id_of_joining_node = int(args[0])
             result = self.send_keys(id_of_joining_node)
 
-        if operation == "insert":
-            # print("finding hop to insert the key" , str(self.nodeinfo) )
-            data = message.split('|')[1].split(":")
+        elif operation == "insert":
+            data = args[0].split(":")
             key = data[0]
             value = data[1]
-            result = self.insert_key(key,value)
+            result = self.insert_key(key, value)
 
+        elif operation == "delete":
+            result = self.delete_key(args[0])
 
-        if operation == "delete":
-            # print("finding hop to delete the key" , str(self.nodeinfo) )
-            data = message.split('|')[1]
-            result = self.delete_key(data)
+        elif operation == "search":
+            result = self.search_key(args[0])
 
+        elif operation == "join_request":
+            result = self.join_request_from_other_node(int(args[0]))
 
-        if operation == 'search':
-            # print('Seaching...')
-            data = message.split('|')[1]
-            result = self.search_key(data)
-
-
-
-        if operation == "join_request":
-            # print("join request recv")
-            result  = self.join_request_from_other_node(int(args[0]))
-
-        if operation == "find_predecessor":
-            # print("finding predecessor")
+        elif operation == "find_predecessor":
             result = self.find_predecessor(int(args[0]))
 
-        if operation == "find_successor":
-            # print("finding successor")
+        elif operation == "find_successor":
             result = self.find_successor(int(args[0]))
 
-        if operation == "get_successor":
-            # print("getting successor")
+        elif operation == "get_successor":
             result = self.get_successor()
 
-        if operation == "get_predecessor":
-            # print("getting predecessor")
+        elif operation == "get_predecessor":
             result = self.get_predecessor()
 
-        if operation == "get_id":
-            # print("getting id")
+        elif operation == "get_id":
             result = self.get_id()
 
-        if operation == "notify":
-            # print("notifiying")
-            self.notify(int(args[0]),args[1],args[2])
+        elif operation == "notify":
+            self.notify(int(args[0]), args[1], args[2])
+            result = "Notified"
 
-        # print(result)
         return str(result)
-
 
     def serve_requests(self, conn, addr):
         '''
@@ -173,6 +307,13 @@ class Node:
         thread_for_stabalize.start()
         thread_for_fix_finger = threading.Thread(target=  self.fix_fingers)
         thread_for_fix_finger.start()
+
+        # Start the HTTP server in a separate thread
+        thread_for_http_server = threading.Thread(
+            target=self.start_http_server
+        )
+        thread_for_http_server.start() 
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.nodeinfo.ip, self.nodeinfo.port))
@@ -257,7 +398,8 @@ class Node:
         # print("finding pred for id ", search_id)
 
 
-        assert(self.successor != None and isinstance(self.successor,Node), f"Successor does not exist for node {self}")
+        assert self.successor is not None and isinstance(self.successor, Node), f"Successor does not exist for node {self}"
+
 
 
         if self.get_forward_distance(self.successor.id) > self.get_forward_distance(search_id): # Base Case: Are we the predecessor ?
@@ -289,7 +431,7 @@ class Node:
         data = send_message(ip , port, "get_successor") # Note that this returns the direct successor
         return data
 
-    def closest_preceding_node(self, search_id:str): # add -> Node
+    def closest_preceding_node(self, search_id:str) -> "Node":
         closest_node = None
         min_distance = pow(2,m)+1
         for i in list(reversed(range(m))):
@@ -458,7 +600,39 @@ class Node:
 
 
     def get_forward_distance_2nodes(self,node2,node1):
-        return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)    
+        return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)
+    
+    def start_http_server(self):
+        '''
+        Start a simple HTTP server to serve files from the current directory.
+        Dynamically inject the node's port into the frontend.
+        '''
+        os.chdir('./frontend/dist')  # Change directory to the frontend build folder
+
+        class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
+            def __init__(self, *args, node_port=None, **kwargs):
+                self.node_port = node_port
+                super().__init__(*args, **kwargs)
+
+            def do_GET(self):
+                if self.path == "/" or self.path == "/index.html":
+                    # Inject the node's port into the HTML
+                    with open("index.html", "r") as file:
+                        html = file.read()
+                    html = html.replace("{{NODE_PORT}}", str(self.node_port))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html")
+                    self.end_headers()
+                    self.wfile.write(html.encode("utf-8"))
+                else:
+                    super().do_GET()
+
+        handler = CustomHTTPRequestHandler
+        http_port = 8080  # Explicitly set the HTTP server port
+        with TCPServer(("", http_port), lambda *args, **kwargs: handler(*args, node_port=self.port, **kwargs)) as httpd:
+            print(f"Serving frontend on http://localhost:{http_port}")
+            httpd.serve_forever()
+
 # The class FingerTable is responsible for managing the finger table of each node.
 class FingerTable:
     '''
@@ -471,7 +645,7 @@ class FingerTable:
             x = pow(2, i)
             entry = (my_id + x) % pow(2,m)
             node = None
-            self.table.append( [entry, node] )
+            self.table.append([entry, node])
 
     def print(self):
         '''
