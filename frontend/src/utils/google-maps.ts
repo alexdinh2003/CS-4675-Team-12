@@ -14,11 +14,11 @@ export const handleAddressEnter = async (address: string) => {
             throw new Error('No results found for the given address.');
         }
 
-        const city = data.address_components.find((component: { types: string[]; long_name: string }) =>
+        const location = data.address_components.find((component: { types: string[]; long_name: string }) =>
             component.types.includes('locality')
         )?.long_name;
 
-        const postalCode = data.address_components.find((component: { types: string[]; long_name: string }) =>
+        const zipcode = data.address_components.find((component: { types: string[]; long_name: string }) =>
             component.types.includes('postal_code')
         )?.long_name;
 
@@ -26,8 +26,8 @@ export const handleAddressEnter = async (address: string) => {
         const lng = data.geometry.location.lng;
 
         return {
-            city,
-            postalCode,
+            location,
+            zipcode,
             latitude: lat,
             longitude: lng,
         };

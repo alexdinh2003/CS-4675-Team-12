@@ -6,9 +6,78 @@ import random
 import sys
 from copy import deepcopy
 import json
-from http.server import SimpleHTTPRequestHandler
-from socketserver import TCPServer
-import os
+from flask import Flask, request
+from flask_cors import CORS, cross_origin
+
+
+flask_app = Flask(__name__)
+cors = CORS(flask_app)
+
+@flask_app.route('/api/add-listing', methods=['POST'])
+@cross_origin()
+def add_listing():
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON data"}, 400
+
+    message = f"add_listing|{json.dumps(data)}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/get-listings-by-location', methods=['GET'])
+def get_listings_by_location():
+    city = request.args.get("city")
+    if not city:
+        return {"error": "City is required"}, 400
+
+    city = city.lower()
+    message = f"get_listings_by_location|{city}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/get-listings-by-location-zip', methods=['GET'])
+def get_listings_by_location_zip():
+    city = request.args.get("city")
+    zipcode = request.args.get("zipcode")
+    if not city or not zipcode:
+        return {"error": "City and Zipcode are required"}, 400
+
+    city = city.lower()
+    message = f"get_listings_by_location_zip|{city}|{zipcode}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/book-listing', methods=['POST'])
+def book_listing():
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON data"}, 400
+
+    message = f"book_listing|{json.dumps(data)}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/write-review', methods=['POST'])
+def write_review():
+    data = request.get_json()
+    if not data or 'listing_id' not in data or 'review' not in data:
+        return {"error": "Invalid JSON data"}, 400
+
+    listing_id = data['listing_id']
+    review = data['review']
+    message = f"write_review|{listing_id}|{review}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/get-reviews', methods=['GET'])
+def get_reviews():
+    listing_id = request.args.get("listing_id")
+    if not listing_id:
+        return {"error": "Listing ID is required"}, 400
+
+    message = f"get_reviews|{listing_id}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
 
 m = 7
 # The class DataStore is used to store the key value pairs at each node
@@ -223,8 +292,8 @@ class Node:
         elif operation == 'insert_server':
             data = args[0].split(":")
             key = data[0]
-            listing_id = data[1]
-            self.data_store.insert(key, listing_id)
+            value = data[1]
+            self.data_store.insert(key, value)
             result = 'Inserted'
 
         elif operation == "delete_server":
@@ -307,13 +376,6 @@ class Node:
         thread_for_stabalize.start()
         thread_for_fix_finger = threading.Thread(target=  self.fix_fingers)
         thread_for_fix_finger.start()
-
-        # Start the HTTP server in a separate thread
-        thread_for_http_server = threading.Thread(
-            target=self.start_http_server
-        )
-        thread_for_http_server.start() 
-
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.nodeinfo.ip, self.nodeinfo.port))
@@ -601,38 +663,6 @@ class Node:
 
     def get_forward_distance_2nodes(self,node2,node1):
         return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)
-    
-    def start_http_server(self):
-        '''
-        Start a simple HTTP server to serve files from the current directory.
-        Dynamically inject the node's port into the frontend.
-        '''
-        os.chdir('./frontend/dist')  # Change directory to the frontend build folder
-
-        class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
-            def __init__(self, *args, node_port=None, **kwargs):
-                self.node_port = node_port
-                super().__init__(*args, **kwargs)
-
-            def do_GET(self):
-                if self.path == "/" or self.path == "/index.html":
-                    # Inject the node's port into the HTML
-                    with open("index.html", "r") as file:
-                        html = file.read()
-                    html = html.replace("{{NODE_PORT}}", str(self.node_port))
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/html")
-                    self.end_headers()
-                    self.wfile.write(html.encode("utf-8"))
-                else:
-                    super().do_GET()
-
-        handler = CustomHTTPRequestHandler
-        http_port = 8080  # Explicitly set the HTTP server port
-        with TCPServer(("", http_port), lambda *args, **kwargs: handler(*args, node_port=self.port, **kwargs)) as httpd:
-            print(f"Serving frontend on http://localhost:{http_port}")
-            httpd.serve_forever()
-
 # The class FingerTable is responsible for managing the finger table of each node.
 class FingerTable:
     '''
@@ -668,9 +698,15 @@ def send_message(ip, port, message):
     s.close()
     return data.decode("utf-8")
 
+def start_flask_app():
+    flask_app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 ip = "127.0.0.1"
+flask_thread = threading.Thread(target=start_flask_app)
+flask_thread.daemon = True  # Daemon thread will exit when the main program exits
+flask_thread.start()
 # This if statement is used to check if the node joining is the first node of the ring or not
 
 if len(sys.argv) == 3:
