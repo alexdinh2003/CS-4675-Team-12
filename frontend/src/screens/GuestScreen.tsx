@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { handleAddressEnter } from "../utils/google-maps";
-import { requestHashes } from "../utils/hash";
+import { getListingsByLocation, requestMyListings } from "../utils/handleListings";
 
 const GuestScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -15,7 +15,8 @@ const GuestScreen: React.FC = () => {
             console.log("Updated addressInfo:", addressInfo);
             try {
                 (document.querySelector('input[type="text"]') as HTMLInputElement).value = "";
-                const result = await requestHashes(addressInfo);
+                //const result = await getListingsByLocation(addressInfo);
+                const result = await requestMyListings();
                 if (result !== undefined && result !== null) {
                     console.log("Listings fetched:", result);
                     setListings(result);

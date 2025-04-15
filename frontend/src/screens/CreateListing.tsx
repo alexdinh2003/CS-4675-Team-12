@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { hash } from "../utils/hash";
+import { enterListing } from "../utils/handleListings";
 
 const CreateListing: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ const CreateListing: React.FC = () => {
     e.preventDefault();
     console.log("Form submitted:", formValues);
 
-    hash(formValues);
+    enterListing(formValues);
     navigate("/host");
   };
 
