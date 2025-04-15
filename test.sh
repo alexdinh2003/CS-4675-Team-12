@@ -16,10 +16,10 @@ echo 'Running node on port:' $port3
 nohup python3 Node_DHT.py $port3 $port1 &
 sleep 8
 
-key1='good'
-val1='world'
-key2='corona'
-val2='virus'
+key1='test1'
+val1='2396340'
+key2='test2'
+val2='2437230'
 
 echo
 eval echo $(echo 'Inserting $key1:$val1 on $port2' )
@@ -31,7 +31,7 @@ echo
 eval echo $(echo 'Searching key=$key1 on $port3' )
 x="$(echo "search|$key1" | nc localhost $port3)"
 sleep 2
-echo $x
+echo "Search result for $key1: $x"
 
 echo
 eval echo $(echo 'Inserting $key2:$val2 on $port3' )
@@ -42,7 +42,7 @@ echo $x
 eval echo $(echo 'Searching key=$key2 on $port1' )
 x="$(echo "search|$key2" | nc localhost $port1)"
 sleep 2
-echo $x
+echo "Search result for $key2: $x"
 
 
 pkill -f Node_DHT.py
