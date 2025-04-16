@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { enterListing } from "../utils/handleListings";
+import { useNavigate, useLocation } from "react-router-dom";
+import { enterListing } from "../utils/handle-apis";
 
 const CreateListing: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const userId = location.state?.userId;
 
   const [formValues, setFormValues] = useState({
     listingName: "",
@@ -25,8 +27,9 @@ const CreateListing: React.FC = () => {
     e.preventDefault();
     console.log("Form submitted:", formValues);
 
-    enterListing(formValues);
-    navigate("/host");
+    const host_password = "password"; // Placeholder for password hash
+    enterListing({ ...formValues, host_id: userId, host_password: host_password }) ;
+    navigate("/host", { state: { userId } });
   };
 
 

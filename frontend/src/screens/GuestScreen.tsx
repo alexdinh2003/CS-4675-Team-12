@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { handleAddressEnter } from "../utils/google-maps";
-import { getListingsByLocation, requestMyListings } from "../utils/handleListings";
+import { requestMyListings } from "../utils/handle-apis";
 
 const GuestScreen: React.FC = () => {
     const navigate = useNavigate();
-
+    const location = useLocation();
+    const userId = location.state?.userId;
     const [address, setAddress] = useState("");
     const [addressInfo, setAddressInfo] = useState<any>(null);
     const [listings, setListings] = useState<any[]>([]);
@@ -16,7 +17,7 @@ const GuestScreen: React.FC = () => {
             try {
                 (document.querySelector('input[type="text"]') as HTMLInputElement).value = "";
                 //const result = await getListingsByLocation(addressInfo);
-                const result = await requestMyListings();
+                const result = await requestMyListings(userId);
                 if (result !== undefined && result !== null) {
                     console.log("Listings fetched:", result);
                     setListings(result);
@@ -47,6 +48,12 @@ const GuestScreen: React.FC = () => {
             >
                 Back
             </button>
+            <button
+                onClick={() => navigate("/guest/bookings", { state: { userId } })}
+                className="absolute top-4 right-4 text-white px-4 py-2 rounded-md hover:bg-green-600"
+            >
+                My Bookings
+            </button>
             <div className="w-full max-w-4xl bg-white p-8 rounded-lg shadow-md text-center text-black">
                 <h1 className="text-3xl font-bold">Enter a Nearby Address</h1>
                 <div className="mt-4 flex gap-4 items-center justify-center">
@@ -70,7 +77,7 @@ const GuestScreen: React.FC = () => {
                                 console.error("Error in handleAddressEnter:", error);
                             }
                         }}
-                        className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                        className="px-4 py-2 text-white rounded-md hover:bg-green-600"
                     >
                         Enter
                     </button>

@@ -82,15 +82,19 @@ def get_listings():
     hashes = [ str(node.hash(f"listing:{i}")) for i in ids ]
     return {"hashes": hashes},200
 
-@flask_app.route('/api/book-listing', methods=['POST'])
+@flask_app.route('/api/book-listing', methods=['GET'])
+@cross_origin()
 def book_listing():
-    data = request.get_json()
-    if not data:
-        return {"error": "Invalid JSON data"}, 400
+    listingId = request.args.get("listing_id")
+    if not listingId:
+        return {"error": "Listing ID is required"}, 400
 
-    message = f"book_listing|{json.dumps(data)}"
-    result = node.process_requests(message)
-    return {"result": result}, 200
+    message = json.dumps({"action": "book_listing", "listing_id": listingId})
+    try:
+        result = node.process_requests(message)
+        return {"result": result}, 200
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @flask_app.route('/api/write-review', methods=['POST'])
 def write_review():
@@ -912,9 +916,9 @@ def start_flask_app():
 
 
 ip = "127.0.0.1"
-#flask_thread = threading.Thread(target=start_flask_app)
-#flask_thread.daemon = True  # Daemon thread will exit when the main program exits
-#flask_thread.start()
+flask_thread = threading.Thread(target=start_flask_app)
+flask_thread.daemon = True  # Daemon thread will exit when the main program exits
+flask_thread.start()
 # This if statement is used to check if the node joining is the first node of the ring or not
 
 if len(sys.argv) == 3:

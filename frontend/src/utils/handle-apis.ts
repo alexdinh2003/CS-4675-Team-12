@@ -29,7 +29,7 @@ const getPeerUrl = async () => {
   }
 };
 
-export const enterListing = async (listingData: { listingName: string, address: string, hostName: string, roomType: string, minimumNights: string } | null) => {
+export const enterListing = async (listingData: { host_id: string, host_password: string, listingName: string, address: string, hostName: string, roomType: string, minimumNights: string } | null) => {
     if (!listingData) {
         return null;
     }
@@ -40,7 +40,7 @@ export const enterListing = async (listingData: { listingName: string, address: 
     }
 
     //TODO: Find out how to do ID generation in meeting
-    const id = 1000
+    const id = Date.now() + Math.floor(Math.random() * 1000);
     const addressInfo = await handleAddressEnter(listingData.address);
     const message = { id: id, ...listingData, ...addressInfo };
 
@@ -67,7 +67,7 @@ export const enterListing = async (listingData: { listingName: string, address: 
     }
 };
 
-export const requestMyListings = async () => {
+export const requestMyListings = async (userId: string) => {
 
     const fetchImageBlob = async (url: string): Promise<Blob> => {
       const res = await fetch(url);
@@ -109,6 +109,39 @@ export const requestMyListings = async () => {
 
     return [listing1, listing2, listing3];
 };
+
+// export const requestMyListings = async (userId: string) => {
+//   if (!url) {
+//     const peerUrl = await getPeerUrl();
+//     url = peerUrl;
+//   }
+
+//   listings = [];
+
+//   const apiUrl = `${url}/api/get-listings-by-host/${userId}`;
+
+//   try {
+//       const res = await fetch(apiUrl, {
+//           method: 'GET',
+//           headers: {
+//               'Content-Type': 'application/json',
+//           },
+//       });
+
+//       const hashes = await res.json();
+//       if (res.ok) {
+//           console.log("Hashes fetched successfully:", hashes);
+//           getListingsByHashes(hashes);
+//           return listings;
+//       } else {
+//           console.log("Error fetching listings:", hashes.error);
+//           return null;
+//       }
+//   } catch (error) {
+//       console.error("Error:", error);
+//       return null;
+//   }
+// }
 
 export const getListingsByLocation = async (addressInfo: { city: string; postal_code: string; latitude: number; longitude: number } | null) => {
   if (!addressInfo) {
@@ -209,4 +242,95 @@ const getImagesByFileName = async (fileNames: string[]) => {
   }
 
   return imageBlobs;
+};
+
+export async function createAccount(user: { id: string; password: string }) {
+  // Return a dummy success response without calling the API
+  return { success: true, message: "Account created successfully" };
+  // try {
+
+  //     if (!url) {
+  //         const peerUrl = await getPeerUrl();
+  //         url = peerUrl;
+  //     }
+
+  //     // Make a POST request to the Flask backend to create an account
+  //     const response = await fetch(`${url}/create-account`, {
+  //         method: 'POST',
+  //         headers: {
+  //             'Content-Type': 'application/json',
+  //         },
+  //         body: JSON.stringify(user),
+  //     });
+
+  //     if (!response.ok) {
+  //         throw new Error(`Error creating account: ${response.statusText}`);
+  //     }
+
+  //     return await response.json();
+  // } catch (error) {
+  //     console.error('Error creating account:', error);
+  //     throw error;
+  // }
+}
+
+export async function loginUser(user: { id: string; password: string }) {
+  // Return a dummy success response without calling the API
+  return { success: true, message: "Account created successfully" };
+  // try {
+
+  //     if (!url) {
+  //         const peerUrl = await getPeerUrl();
+  //         url = peerUrl;
+  //     }
+
+  //     // Make a POST request to the Flask backend to create an account
+  //     const response = await fetch(`${url}/login`, {
+  //         method: 'POST',
+  //         headers: {
+  //             'Content-Type': 'application/json',
+  //         },
+  //         body: JSON.stringify(user),
+  //     });
+
+  //     if (!response.ok) {
+  //         throw new Error(`Error logging in: ${response.statusText}`);
+  //     }
+
+  //     return await response.json();
+  // } catch (error) {
+  //     console.error('Error logging in:', error);
+  //     throw error;
+  // }
+}
+
+export const bookListing = async (listingId: string) => {
+  if (!url) {
+    const peerUrl = await getPeerUrl();
+    url = peerUrl;
+  }
+
+  const apiUrl = `http://localhost:5000/api/book-listing?listing_id=${listingId}`;
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+      console.log("Booking successful:", result);
+      return result;
+    } else {
+      console.log("Error booking listing:", result.error);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    return null;
+  }
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { requestMyListings } from "../utils/handle-apis";
 
-const HostScreen: React.FC = () => {
+const Bookings: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const userId = location.state?.userId;
@@ -45,7 +45,7 @@ const HostScreen: React.FC = () => {
         Back
       </button>
       <div className="w-full max-w-4xl bg-white p-8 rounded-lg shadow-md text-center text-black">
-        <h1 className="text-3xl font-bold">My Listings</h1>
+        <h1 className="text-3xl font-bold">My Bookings</h1>
         <div className="mt-6 max-h-96 overflow-y-auto">
           {listings.length > 0 ? (
             listings.map((listing: any, index: number) => (
@@ -63,12 +63,6 @@ const HostScreen: React.FC = () => {
             <p className="text-gray-500">No listings available.</p>
           )}
         </div>
-        <button
-          onClick={() => navigate("/host/create-listing", { state: { userId } })}
-          className="mt-4 !bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-green-600 w-full"
-        >
-          Create a Listing
-        </button>
       </div>
 
       {/* Modal */}
@@ -148,4 +142,4 @@ const HostScreen: React.FC = () => {
   );
 };
 
-export default HostScreen;
+export default Bookings;

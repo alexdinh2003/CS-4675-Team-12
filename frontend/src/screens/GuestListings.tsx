@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { bookListing } from "../utils/handle-apis";
 
 const GuestListings: React.FC = () => {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ const GuestListings: React.FC = () => {
   const openModal = (listing: any) => {
     setSelectedListing({
       ...listing,
-      currentImageIndex: 0, // ✅ Initialize image index
+      currentImageIndex: 0,
     });
     setIsModalOpen(true);
   };
@@ -75,8 +76,7 @@ const GuestListings: React.FC = () => {
               {/* Book Listing Button */}
               <button
                 onClick={() => {
-                  //TODO: call api to book listing
-                  console.log("Booking listing:", selectedListing);
+                  bookListing(selectedListing.id);
                 }}
                 className="text-white px-4 py-2 rounded-md hover:bg-blue-600 !bg-blue-500"
               >
