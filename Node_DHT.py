@@ -204,18 +204,37 @@ class Node:
 
             listing_json = json.loads(args[0])
             listing_id = listing_json["id"]
+            host_id = listing_json["host_id"]
+            password_hash = listing_json.get("host_password", "")
             key = f"listing:{listing_id}"
 
             key_hash = self.hash(key)
-            print("insertion for ", listing_id, " with hash ", key_hash)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
 
             if ip == self.ip and port == self.port:
                 self.data_store.insert(key, json.dumps(listing_json))
+
+                # Update user listings using password hash
+                if password_hash:
+                    user_key = f"user:{password_hash}"
+                    user_hash = self.hash(user_key)
+                    user_succ = self.find_successor(user_hash)
+                    ip_user, port_user = self.get_ip_port(user_succ)
+
+                    if ip_user == self.ip and port_user == self.port:
+                        user_data = json.loads(self.data_store.data.get(user_key, '{}'))
+                        owning_listings = user_data.get("owning_listings", [])
+                        if listing_id not in owning_listings:
+                            owning_listings.append(listing_id)
+                        user_data["owning_listings"] = owning_listings
+                        self.data_store.data[user_key] = json.dumps(user_data)
+                    else:
+                        send_message(ip_user, port_user, f"update_user_owning|{password_hash}|{listing_id}")
+
                 city = listing_json.get("location", "unknown").lower()
 
-                # Zipcode Index
+                # Index by zipcode
                 zipcode = str(int(float(listing_json.get("zipcode", 0))))
                 zip_key = f"zipcode:{zipcode}"
                 zip_key_hash = self.hash(zip_key)
@@ -230,7 +249,7 @@ class Node:
                 else:
                     send_message(ip_zip_idx, port_zip_idx, f"update_zipcode_index|{zipcode}|{listing_id}")
 
-                # City index
+                # Index by city
                 city_key = f"city:{city}"
                 city_key_hash = self.hash(city_key)
                 city_succ = self.find_successor(city_key_hash)
@@ -245,6 +264,79 @@ class Node:
                     send_message(ip_city, ip_port, f"update_city_index|{city}|{listing_id}")
 
                 result = f"Listing {listing_id} added."
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "update_user_owning":
+            password_hash = args[0]
+            listing_id = args[1]
+            user_key = f"user:{password_hash}"
+            user_data = json.loads(self.data_store.data.get(user_key, '{}'))
+            owning_listings = user_data.get("owning_listings", [])
+            if listing_id not in owning_listings:
+                owning_listings.append(listing_id)
+            user_data["owning_listings"] = owning_listings
+            self.data_store.data[user_key] = json.dumps(user_data)
+            result = f"Updated owning listings for {password_hash}"
+
+        elif operation == "register_user":
+            user_json = json.loads(args[0])
+            password_hash = user_json["host_password"]
+            host_id = user_json["host_id"]
+            user_key = f"user:{password_hash}"
+            key_hash = self.hash(user_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                user_data = {
+                    "host_id": host_id,
+                    "host_name": user_json.get("host_name", ""),
+                    "owning_listings": [],
+                    "currently_renting": [],
+                    "password_hash": password_hash
+                }
+                self.data_store.data[user_key] = json.dumps(user_data)
+                result = f"User {host_id} registered."
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "get_user_info":
+            password_hash = args[0]
+            user_key = f"user:{password_hash}"
+            key_hash = self.hash(user_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                result = self.data_store.data.get(user_key, "NOT FOUND")
+            else:
+                result = send_message(ip, port, message)
+
+        elif operation == "book_listing":
+            booking_json = json.loads(args[0])
+            booking_id = booking_json["id"]
+            key = f"booking:{booking_id}"
+            key_hash = self.hash(key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                self.data_store.insert(key, json.dumps(booking_json))
+
+                # Update currently_renting for renter
+                renter_password = booking_json.get("renter_password", "")
+                listing_id = booking_json.get("listing_id", "")
+                if renter_password and listing_id:
+                    user_key = f"user:{renter_password}"
+                    user_data = json.loads(self.data_store.data.get(user_key, "{}"))
+                    currently_renting = user_data.get("currently_renting", [])
+                    if listing_id not in currently_renting:
+                        currently_renting.append(listing_id)
+                    user_data["currently_renting"] = currently_renting
+                    self.data_store.data[user_key] = json.dumps(user_data)
+
+                result = f"Booking {booking_id} added."
             else:
                 result = send_message(ip, port, message)
 
@@ -357,7 +449,6 @@ class Node:
             else:
                 result = send_message(ip, port, message)
 
-        # Remaining default Chord operations...
         elif operation == 'insert_server':
             data = args[0].split(":")
             key = data[0]
@@ -413,7 +504,6 @@ class Node:
             result = "Notified"
         else:
             result = "Unknown op"
-
 
         return str(result)
 
