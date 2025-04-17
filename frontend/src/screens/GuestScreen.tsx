@@ -35,7 +35,7 @@ const GuestScreen: React.FC = () => {
 
     useEffect(() => {
         if (listings.length > 0) {
-            navigate("/guest/listings", { state: { listings } });
+            navigate("/guest/listings", { state: { listings: listings, user: user } });
         }
     }, [listings, navigate]);
 

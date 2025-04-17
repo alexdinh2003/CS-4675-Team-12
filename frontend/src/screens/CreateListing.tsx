@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { enterListing } from "../utils/handle-apis";
+import { enterListing, loginUser } from "../utils/handle-apis";
 
 const CreateListing: React.FC = () => {
   const navigate = useNavigate();
@@ -24,13 +24,14 @@ const CreateListing: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Form submitted:", formValues);
 
     console.log(user);
-    enterListing({ ...formValues, host_id: user.host_id, host_password: user.password_hash }) ;
-    navigate("/host", { state: { user } });
+    await enterListing({ ...formValues, host_id: user.host_id, host_password: user.password_hash }) ;
+    const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
+    navigate("/host", { state: { user: result } });
   };
 
 

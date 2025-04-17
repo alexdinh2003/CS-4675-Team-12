@@ -21,7 +21,7 @@ const Bookings: React.FC = () => {
     };
 
     fetchListings();
-  }, []);
+  }, [user]);
 
   const openModal = (listing: any) => {
     setSelectedListing({
@@ -54,7 +54,7 @@ const Bookings: React.FC = () => {
                 className="p-4 mb-4 border rounded-md shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => openModal(listing)}
               >
-                <h2 className="text-xl font-semibold text-black">{listing.title}</h2>
+                <h2 className="text-xl font-semibold text-black">{listing.listingName}</h2>
                 <p className="text-gray-700">{listing.description}</p>
                 <p className="text-gray-500 text-sm">Price: {listing.price}</p>
               </div>

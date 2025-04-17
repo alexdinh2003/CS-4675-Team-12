@@ -79,8 +79,7 @@ def get_listings():
 
     # raw is JSON list of listing IDs; if you want _hashes_ instead:
     ids = json.loads(raw)
-    hashes = [ str(node.hash(f"listing:{i}")) for i in ids ]
-    return {"hashes": hashes},200
+    return ids, 200
 
 @flask_app.route('/api/book-listing', methods=['POST'])
 @cross_origin()

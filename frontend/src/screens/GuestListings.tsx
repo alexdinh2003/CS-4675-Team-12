@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { bookListing } from "../utils/handle-apis";
+import { bookListing, loginUser } from "../utils/handle-apis";
 
 const GuestListings: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { listings } = location.state || { listings: [] };
-
+  const user = location.state?.user;
+  const { listings = [] } = location.state || {};
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -15,6 +15,7 @@ const GuestListings: React.FC = () => {
       ...listing,
       currentImageIndex: 0,
     });
+    console.log("User:", user);
     setIsModalOpen(true);
   };
 
@@ -26,7 +27,7 @@ const GuestListings: React.FC = () => {
   return (
     <div className="w-screen h-screen flex justify-center items-center bg-gray-600">
       <button
-        onClick={() => navigate("/guest")}
+        onClick={() => navigate("/guest", { state: { user: user } })}
         className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
       >
         Back
@@ -41,7 +42,7 @@ const GuestListings: React.FC = () => {
                 className="p-4 mb-4 border rounded-md shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => openModal(listing)}
               >
-                <h2 className="text-xl font-semibold text-black">{listing.title}</h2>
+                <h2 className="text-xl font-semibold text-black">{listing.listingName}</h2>
                 <p className="text-gray-700">{listing.description}</p>
                 <p className="text-gray-500 text-sm">Price: {listing.price}</p>
               </div>
@@ -58,12 +59,12 @@ const GuestListings: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-3xl w-full flex">
             {/* Text Info */}
             <div className="flex-1 pr-4">
-              <h2 className="text-2xl font-bold mb-4 text-black">{selectedListing.title}</h2>
+              <h2 className="text-2xl font-bold mb-4 text-black">{selectedListing.listingName}</h2>
               <p className="text-gray-500 mb-2">Price: {selectedListing.price}</p>
               <p className="text-gray-500 mb-2">Location: {selectedListing.location}</p>
-              <p className="text-gray-500 mb-2">Host: {selectedListing.host_name}</p>
-              <p className="text-gray-500 mb-2">Room Type: {selectedListing.room_type}</p>
-              <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimum_nights}</p>
+              <p className="text-gray-500 mb-2">Host: {selectedListing.hostName}</p>
+              <p className="text-gray-500 mb-2">Room Type: {selectedListing.roomType}</p>
+              <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimumNights}</p>
               <div className="flex space-x-4 mt-4">
               {/* Close Button */}
               <button
@@ -75,8 +76,13 @@ const GuestListings: React.FC = () => {
 
               {/* Book Listing Button */}
               <button
-                onClick={() => {
-                  bookListing(selectedListing.id);
+                onClick={async () => {
+                  if(await bookListing(user.host_id, user.password_hash, selectedListing.id)) {
+                    const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
+                    navigate("/guest/", { state: { user: result } });
+                  } else {
+                    alert("Booking failed. Please try again.");
+                  }
                 }}
                 className="text-white px-4 py-2 rounded-md hover:bg-blue-600 !bg-blue-500"
               >

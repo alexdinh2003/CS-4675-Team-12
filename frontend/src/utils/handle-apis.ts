@@ -140,8 +140,30 @@ export const getListingsByLocation = async (addressInfo: { location: string; zip
 
       const result = await res.json();
       if (res.ok) {
-          console.log("Hashes fetched successfully:", result.hashes);
-          await getListingsByHashes(result.hashes);
+          for (const listing of result) {
+            const apiUrl = `${url}/api/get-listing-by-id?id=${listing}`;
+            
+            try {
+              const res = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+        
+              const result = await res.json();
+        
+              if (res.ok) {
+                console.log("Listing fetched successfully:", result);
+                listings = [...listings, result];
+              } else {
+                console.log("Error fetching listings:", result.error);
+              }
+            } catch (error) {
+              console.error("Error:", error);
+            }
+          }
+        
           return listings;
       } else {
           console.log("Error fetching listings:", result.error);
@@ -241,7 +263,7 @@ export async function createAccount(user: { host_id: string; host_password: stri
   }
 }
 
-export async function loginUser(user: { id: string; password_hash: string }) {
+export async function loginUser(user: { id: string; password_hash: string; }) {
   
   try {
 
