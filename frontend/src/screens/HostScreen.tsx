@@ -14,7 +14,7 @@ const HostScreen: React.FC = () => {
     const fetchListings = async () => {
       console.log("Fetching listings for user:", user);
       try {
-        const response = await requestMyListings(user);
+        const response = await requestMyListings(user, "host");
         setListings(response);
       } catch (error) {
         console.error("Failed to fetch listings:", error);

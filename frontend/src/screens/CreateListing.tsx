@@ -37,7 +37,7 @@ const CreateListing: React.FC = () => {
   return (
     <div className="w-screen h-screen flex justify-center items-center bg-gray-600">
       <button
-        onClick={() => navigate("/host")}
+        onClick={() => navigate("/host", { state: { user } })}
         className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
       >
         Back

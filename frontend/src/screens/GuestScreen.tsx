@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { handleAddressEnter } from "../utils/google-maps";
-import { requestMyListings } from "../utils/handle-apis";
+import { getListingsByLocation } from "../utils/handle-apis";
 
 const GuestScreen: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const userId = location.state?.userId;
+    const user = location.state?.user;
     const [address, setAddress] = useState("");
     const [addressInfo, setAddressInfo] = useState<any>(null);
     const [listings, setListings] = useState<any[]>([]);
@@ -16,8 +16,7 @@ const GuestScreen: React.FC = () => {
             console.log("Updated addressInfo:", addressInfo);
             try {
                 (document.querySelector('input[type="text"]') as HTMLInputElement).value = "";
-                //const result = await getListingsByLocation(addressInfo);
-                const result = await requestMyListings(userId);
+                const result = await getListingsByLocation(addressInfo);
                 if (result !== undefined && result !== null) {
                     console.log("Listings fetched:", result);
                     setListings(result);
@@ -49,7 +48,7 @@ const GuestScreen: React.FC = () => {
                 Back
             </button>
             <button
-                onClick={() => navigate("/guest/bookings", { state: { userId } })}
+                onClick={() => navigate("/guest/bookings", { state: { user } })}
                 className="absolute top-4 right-4 text-white px-4 py-2 rounded-md hover:bg-green-600"
             >
                 My Bookings

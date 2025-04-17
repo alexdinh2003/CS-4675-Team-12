@@ -68,7 +68,7 @@ export const enterListing = async (listingData: { host_id: string, host_password
     }
 };
 
-export const requestMyListings = async (user: {currentlyRenting: string[], host_id: string, host_name: string, owning_listings: string[], password_hash: string}) => {
+export const requestMyListings = async (user: {currently_renting: string[], host_id: string, host_name: string, owning_listings: string[], password_hash: string}, userType: string) => {
 
   listings = []
   if (!url) {
@@ -76,7 +76,8 @@ export const requestMyListings = async (user: {currentlyRenting: string[], host_
     url = peerUrl;
   }
 
-  for (const listing of user.owning_listings) {
+  const array = (userType == "host" ? user.owning_listings : user.currently_renting);
+  for (const listing of array) {
     const apiUrl = `${url}/api/get-listing-by-id?id=${listing}`;
     
     try {
@@ -103,7 +104,7 @@ export const requestMyListings = async (user: {currentlyRenting: string[], host_
   return listings;
 }
 
-export const getListingsByLocation = async (addressInfo: { city: string; postal_code: string; latitude: number; longitude: number } | null) => {
+export const getListingsByLocation = async (addressInfo: { location: string; zipcode: string; latitude: number; longitude: number } | null) => {
   if (!addressInfo) {
       return null;
   }
@@ -116,13 +117,18 @@ export const getListingsByLocation = async (addressInfo: { city: string; postal_
   //Empty the existing listings
   listings = [];
 
-  // Construct the query parameters
-  const queryParams = new URLSearchParams({
-      city: addressInfo.city,
-      postal_code: addressInfo.postal_code,
-  });
+  let queryParams = {};
+  if (addressInfo.zipcode) {
+    queryParams = new URLSearchParams({
+      zipcode: addressInfo.zipcode,
+    });
+  } else {
+    queryParams = new URLSearchParams({
+      city: addressInfo.location,
+    });
+  }
 
-  const apiUrl = `${url}/api/get-listings-by-location-zip?${queryParams.toString()}`;
+  const apiUrl = `${url}/api/get-listings?${queryParams.toString()}`;
 
   try {
       const res = await fetch(apiUrl, {
@@ -132,13 +138,13 @@ export const getListingsByLocation = async (addressInfo: { city: string; postal_
           },
       });
 
-      const hashes = await res.json();
+      const result = await res.json();
       if (res.ok) {
-          console.log("Hashes fetched successfully:", hashes);
-          getListingsByHashes(hashes);
+          console.log("Hashes fetched successfully:", result.hashes);
+          await getListingsByHashes(result.hashes);
           return listings;
       } else {
-          console.log("Error fetching listings:", hashes.error);
+          console.log("Error fetching listings:", result.error);
           return null;
       }
   } catch (error) {
@@ -148,7 +154,8 @@ export const getListingsByLocation = async (addressInfo: { city: string; postal_
 };
 
 const getListingsByHashes = async (hashes: string[]) => {
-  for(const hash in hashes) {
+  for(const hash of hashes) {
+    console.log("Hash:", hash);
     const apiUrl = `${url}/api/get-listings-by-hash/${hash}`;
     try {
       const res = await fetch(apiUrl, {
@@ -163,6 +170,7 @@ const getListingsByHashes = async (hashes: string[]) => {
         console.log("Listing fetched successfully:", listing);
         const imageBlobs = await getImagesByFileName(listing.images);
         listings = [...listings, { ...listing, images: imageBlobs }];
+        console.log("Listings:", listings);
       } else {
         console.log("Error fetching listings:", listing.error);
         return null;

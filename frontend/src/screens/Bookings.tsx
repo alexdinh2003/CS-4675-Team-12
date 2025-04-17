@@ -5,7 +5,7 @@ import { requestMyListings } from "../utils/handle-apis";
 const Bookings: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userId = location.state?.userId;
+  const user = location.state?.user;
   const [listings, setListings] = useState<any[]>([]);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,7 +13,7 @@ const Bookings: React.FC = () => {
   useEffect(() => {
     const fetchListings = async () => {
       try {
-        const response = await requestMyListings(userId);
+        const response = await requestMyListings(user, "guest");
         setListings(response);
       } catch (error) {
         console.error("Failed to fetch listings:", error);
@@ -39,7 +39,7 @@ const Bookings: React.FC = () => {
   return (
     <div className="w-screen h-screen flex justify-center items-center bg-gray-600">
       <button
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/guest", { state: { user } })}
         className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
       >
         Back
@@ -71,12 +71,12 @@ const Bookings: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-3xl w-full flex">
             {/* Text Info */}
             <div className="flex-1 pr-4">
-              <h2 className="text-2xl font-bold mb-4 text-black">{selectedListing.title}</h2>
+              <h2 className="text-2xl font-bold mb-4 text-black">{selectedListing.listingName}</h2>
               <p className="text-gray-500 mb-2">Price: {selectedListing.price}</p>
               <p className="text-gray-500 mb-2">Location: {selectedListing.location}</p>
-              <p className="text-gray-500 mb-2">Host: {selectedListing.host_name}</p>
-              <p className="text-gray-500 mb-2">Room Type: {selectedListing.room_type}</p>
-              <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimum_nights}</p>
+              <p className="text-gray-500 mb-2">Host: {selectedListing.hostName}</p>
+              <p className="text-gray-500 mb-2">Room Type: {selectedListing.roomType}</p>
+              <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimumNights}</p>
               {/* Close Button */}
               <button
                 onClick={closeModal}
