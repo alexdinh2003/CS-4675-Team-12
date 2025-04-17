@@ -5,15 +5,16 @@ import { requestMyListings } from "../utils/handle-apis";
 const HostScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userId = location.state?.userId;
+  const user = location.state?.user;
   const [listings, setListings] = useState<any[]>([]);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchListings = async () => {
+      console.log("Fetching listings for user:", user);
       try {
-        const response = await requestMyListings(userId);
+        const response = await requestMyListings(user);
         setListings(response);
       } catch (error) {
         console.error("Failed to fetch listings:", error);
@@ -54,7 +55,7 @@ const HostScreen: React.FC = () => {
                 className="p-4 mb-4 border rounded-md shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => openModal(listing)}
               >
-                <h2 className="text-xl font-semibold text-black">{listing.title}</h2>
+                <h2 className="text-xl font-semibold text-black">{listing.listingName}</h2>
                 <p className="text-gray-700">{listing.description}</p>
                 <p className="text-gray-500 text-sm">Price: {listing.price}</p>
               </div>
@@ -64,7 +65,7 @@ const HostScreen: React.FC = () => {
           )}
         </div>
         <button
-          onClick={() => navigate("/host/create-listing", { state: { userId } })}
+          onClick={() => navigate("/host/create-listing", { state: { user: user } })}
           className="mt-4 !bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-green-600 w-full"
         >
           Create a Listing
@@ -77,12 +78,12 @@ const HostScreen: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-3xl w-full flex">
             {/* Text Info */}
             <div className="flex-1 pr-4">
-              <h2 className="text-2xl font-bold mb-4 text-black">{selectedListing.title}</h2>
+              <h2 className="text-2xl font-bold mb-4 text-black">{selectedListing.listingName}</h2>
               <p className="text-gray-500 mb-2">Price: {selectedListing.price}</p>
               <p className="text-gray-500 mb-2">Location: {selectedListing.location}</p>
-              <p className="text-gray-500 mb-2">Host: {selectedListing.host_name}</p>
-              <p className="text-gray-500 mb-2">Room Type: {selectedListing.room_type}</p>
-              <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimum_nights}</p>
+              <p className="text-gray-500 mb-2">Host: {selectedListing.hostName}</p>
+              <p className="text-gray-500 mb-2">Room Type: {selectedListing.roomType}</p>
+              <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimumNights}</p>
               {/* Close Button */}
               <button
                 onClick={closeModal}

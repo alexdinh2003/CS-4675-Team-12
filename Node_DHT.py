@@ -82,14 +82,24 @@ def get_listings():
     hashes = [ str(node.hash(f"listing:{i}")) for i in ids ]
     return {"hashes": hashes},200
 
-@flask_app.route('/api/book-listing', methods=['GET'])
+@flask_app.route('/api/book-listing', methods=['POST'])
 @cross_origin()
 def book_listing():
-    listingId = request.args.get("listing_id")
-    if not listingId:
-        return {"error": "Listing ID is required"}, 400
+    data = request.get_json()
+    if not data or 'id' not in data or 'listing_id' not in data or 'renter_password' not in data:
+        return {"error": "Invalid JSON data"}, 400
 
-    message = json.dumps({"action": "book_listing", "listing_id": listingId})
+    booking_id = data['id']
+    listing_id = data['listing_id']
+    renter_password = data['renter_password']
+
+    booking_json = {
+        "id": booking_id,
+        "listing_id": listing_id,
+        "renter_password": renter_password
+    }
+
+    message = f"book_listing|{json.dumps(booking_json)}"
     try:
         result = node.process_requests(message)
         return {"result": result}, 200
@@ -97,6 +107,7 @@ def book_listing():
         return {"error": str(e)}, 500
 
 @flask_app.route('/api/write-review', methods=['POST'])
+@cross_origin()
 def write_review():
     data = request.get_json()
     if not data or 'listing_id' not in data or 'review' not in data:
@@ -109,6 +120,7 @@ def write_review():
     return {"result": result}, 200
 
 @flask_app.route('/api/get-reviews', methods=['GET'])
+@cross_origin()
 def get_reviews():
     listing_id = request.args.get("listing_id")
     if not listing_id:
@@ -126,20 +138,35 @@ def register_user():
         return {"error": "Invalid JSON"}, 400
 
     raw = node.process_requests(f"register_user|{json.dumps(data)}")
-    return {"result": raw}, 200
-
-@flask_app.route('/api/get-user-info', methods=['GET'])
-@cross_origin()
-def get_user_info():
-    password_hash = request.args.get("password_hash")
-    if not password_hash:
-        return {"error": "password_hash is required"}, 400
-
-    raw = node.process_requests(f"get_user_info|{password_hash}")
     try:
         return json.loads(raw), 200
     except:
         return {"error": raw}, 404
+
+@flask_app.route('/api/get-user-info', methods=['GET'])
+@cross_origin()
+def get_user_info():
+    id = request.args.get("id")
+    password_hash = request.args.get("password_hash")
+    if not password_hash:
+        return {"error": "password_hash is required"}, 400
+
+    raw = node.process_requests(f"get_user_info|{id}|{password_hash}")
+    try:
+        return json.loads(raw), 200
+    except:
+        return {"error": raw}, 404
+    
+@flask_app.route('/api/get-listing-by-id', methods=['GET'])
+@cross_origin()
+def get_listings_by_id():
+    id = request.args.get("id")
+
+    if not id:
+        return {"error": "id is required"}, 400
+
+    raw = node.process_requests(f"get_listing_by_id|{id}")
+    return raw, 200
 
 # # MUST BE DONE VIA FEATURE_FLAG
 # @flask_app.route('/get-url', methods=['GET'])
@@ -243,7 +270,7 @@ class Node:
 
                 # Update user listings using password hash
                 if password_hash:
-                    user_key = f"user:{password_hash}"
+                    user_key = f"user:{host_id}:{password_hash}"
                     user_hash = self.hash(user_key)
                     user_succ = self.find_successor(user_hash)
                     ip_user, port_user = self.get_ip_port(user_succ)
@@ -294,9 +321,10 @@ class Node:
                 result = send_message(ip, port, message)
 
         elif operation == "update_user_owning":
-            password_hash = args[0]
+            host_id = args[0]
+            password_hash = args[1]
             listing_id = args[1]
-            user_key = f"user:{password_hash}"
+            user_key = f"user:{host_id}|{password_hash}"
             user_data = json.loads(self.data_store.data.get(user_key, '{}'))
             owning_listings = user_data.get("owning_listings", [])
             if listing_id not in owning_listings:
@@ -309,7 +337,7 @@ class Node:
             user_json = json.loads(args[0])
             password_hash = user_json["host_password"]
             host_id = user_json["host_id"]
-            user_key = f"user:{password_hash}"
+            user_key = f"user:{host_id}:{password_hash}"
             key_hash = self.hash(user_key)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
@@ -323,13 +351,18 @@ class Node:
                     "password_hash": password_hash
                 }
                 self.data_store.data[user_key] = json.dumps(user_data)
-                result = f"User {host_id} registered."
+                result = user_data
             else:
                 result = send_message(ip, port, message)
 
+            if isinstance(result, dict):
+                return json.dumps(result)
+            return str(result)
+
         elif operation == "get_user_info":
-            password_hash = args[0]
-            user_key = f"user:{password_hash}"
+            id = args[0]
+            password_hash = args[1]
+            user_key = f"user:{id}:{password_hash}"
             key_hash = self.hash(user_key)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
@@ -341,7 +374,7 @@ class Node:
 
         elif operation == "book_listing":
             booking_json = json.loads(args[0])
-            booking_id = booking_json["id"]
+            booking_id = booking_json["listing_id"]
             key = f"booking:{booking_id}"
             key_hash = self.hash(key)
             succ = self.find_successor(key_hash)
@@ -351,10 +384,11 @@ class Node:
                 self.data_store.insert(key, json.dumps(booking_json))
 
                 # Update currently_renting for renter
+                renter_id = booking_json.get("id", "")
                 renter_password = booking_json.get("renter_password", "")
                 listing_id = booking_json.get("listing_id", "")
                 if renter_password and listing_id:
-                    user_key = f"user:{renter_password}"
+                    user_key = f"user:{renter_id}:{renter_password}"
                     user_data = json.loads(self.data_store.data.get(user_key, "{}"))
                     currently_renting = user_data.get("currently_renting", [])
                     if listing_id not in currently_renting:

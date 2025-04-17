@@ -5,14 +5,15 @@ import { enterListing } from "../utils/handle-apis";
 const CreateListing: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const userId = location.state?.userId;
+  const user = location.state?.user;
 
   const [formValues, setFormValues] = useState({
     listingName: "",
     address: "",
-    hostName: "",
+    price: "",
     roomType: "",
     minimumNights: "",
+    hostName: user.host_name,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,9 +28,9 @@ const CreateListing: React.FC = () => {
     e.preventDefault();
     console.log("Form submitted:", formValues);
 
-    const host_password = "password"; // Placeholder for password hash
-    enterListing({ ...formValues, host_id: userId, host_password: host_password }) ;
-    navigate("/host", { state: { userId } });
+    console.log(user);
+    enterListing({ ...formValues, host_id: user.host_id, host_password: user.password_hash }) ;
+    navigate("/host", { state: { user } });
   };
 
 
@@ -73,17 +74,17 @@ const CreateListing: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="hostName" className="block text-left font-medium">
-              Host Name
+            <label htmlFor="price" className="block text-left font-medium">
+              Price
             </label>
             <input
               type="text"
-              id="hostName"
-              name="hostName"
-              value={formValues.hostName}
+              id="price"
+              name="price"
+              value={formValues.price}
               onChange={handleChange}
               className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter host name"
+              placeholder="Enter Price"
             />
           </div>
           <div>

@@ -43,17 +43,31 @@ const LoginScreen: React.FC = () => {
                         const form = e.target as HTMLFormElement;
                         const id = (form.elements.namedItem("id") as HTMLInputElement).value;
                         const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+                        const name = (form.elements.namedItem("name") as HTMLInputElement).value;
                         const hashedPassword = SHA256(password).toString();
 
-                        const user = { id, password: hashedPassword };
+                        const user = { host_id: id, host_password: hashedPassword, host_name: name};
                         const response = await createAccount(user);
-                        if (response.success) {
+
+                        if (response) {
                             console.log("userType: " + userType)
-                            navigate(`/${userType}`, { state: { userId: id } });
+                            navigate(`/${userType}`, { state: { user: response } });
                         }
 
                     }}
                 >
+                    <div className="mb-4">
+                        <label htmlFor="name" className="block text-left font-medium mb-2">
+                            Name
+                        </label>
+                        <input
+                            type="text"
+                            id="name"
+                            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Enter Name"
+                            required
+                        />
+                    </div>
                     <div className="mb-4">
                         <label htmlFor="id" className="block text-left font-medium mb-2">
                             User ID
@@ -105,10 +119,10 @@ const LoginScreen: React.FC = () => {
                         const password = (form.elements.namedItem("password") as HTMLInputElement).value;
                         const hashedPassword = SHA256(password).toString();
 
-                        const user = { id, password: hashedPassword };
+                        const user = { id: id, password_hash: hashedPassword };
                         const response = await loginUser(user);
-                        if (response.success) {
-                            navigate(`/${userType}`, { state: { userId: id } });
+                        if (response) {
+                            navigate(`/${userType}`, { state: { user: response } });
                         } else {
                             alert("Invalid credentials. Please try again.");
                         }
