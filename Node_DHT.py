@@ -114,6 +114,28 @@ def get_reviews():
     result = node.process_requests(message)
     return {"result": result}, 200
 
+@flask_app.route('/api/register-user', methods=['POST'])
+@cross_origin()
+def register_user():
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON"}, 400
+
+    raw = node.process_requests(f"register_user|{json.dumps(data)}")
+    return {"result": raw}, 200
+
+@flask_app.route('/api/get-user-info', methods=['GET'])
+@cross_origin()
+def get_user_info():
+    password_hash = request.args.get("password_hash")
+    if not password_hash:
+        return {"error": "password_hash is required"}, 400
+
+    raw = node.process_requests(f"get_user_info|{password_hash}")
+    try:
+        return json.loads(raw), 200
+    except:
+        return {"error": raw}, 404
 
 # # MUST BE DONE VIA FEATURE_FLAG
 # @flask_app.route('/get-url', methods=['GET'])
