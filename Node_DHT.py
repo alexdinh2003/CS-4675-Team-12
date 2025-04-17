@@ -6,9 +6,123 @@ import random
 import sys
 from copy import deepcopy
 import json
-from http.server import SimpleHTTPRequestHandler
-from socketserver import TCPServer
 import os
+#from handleData import *
+from flask import Flask, request
+from flask_cors import CORS, cross_origin
+from flask import send_from_directory
+
+
+flask_app = Flask(__name__)
+cors = CORS(flask_app)
+
+DATA_FOLDER = "NodeData"
+os.makedirs(DATA_FOLDER, exist_ok=True)
+
+
+@flask_app.route('/api/upload-image', methods=['POST'])
+@cross_origin()
+def upload_image():
+    listing_hash = request.form.get("listing_hash")
+    file = request.files.get("file")
+    if not listing_hash or not file:
+        return {"error":"listing_hash and file required"},400
+
+    node.upload_image_http(listing_hash, file)
+    return {"result":"Image uploaded"},200
+
+@flask_app.route('/api/get-listing-by-hash', methods=['GET'])
+@cross_origin()
+def get_listing_by_hash():
+    h = request.args.get("hash")
+    if not h:
+        return {"error":"hash required"},400
+
+    raw = node.process_requests(f"get_listing_by_hash|{h}")
+    try:
+        return json.loads(raw), 200
+    except:
+        return {"error": raw}, 404
+
+@flask_app.route('/api/get-image/<filename>', methods=['GET'])
+@cross_origin()
+def get_image(filename):
+    path = node.get_image_path(filename)
+    if not path:
+        return {"error":"Not found"},404
+    return send_from_directory(DATA_FOLDER, filename)
+
+@flask_app.route('/api/add-listing', methods=['POST'])
+@cross_origin()
+def add_listing():
+    data = request.get_json()
+    if not data:
+        return {"error":"Invalid JSON"},400
+
+    raw = node.process_requests(f"add_listing|{json.dumps(data)}")
+    return {"result": raw},200
+
+@flask_app.route('/api/get-listings', methods=['GET'])
+@cross_origin()
+def get_listings():
+    city = request.args.get("city")
+    zipc = request.args.get("zipcode")
+    # XOR: exactly one must be provided
+    if bool(city) == bool(zipc):
+        return {"error":"Provide exactly one of city or zipcode"},400
+
+    if city:
+        city = city.lower()
+        raw = node.process_requests(f"get_listings_by_city|{city}")
+    else:
+        raw = node.process_requests(f"get_listings_by_zip|{zipc}")
+
+    # raw is JSON list of listing IDs; if you want _hashes_ instead:
+    ids = json.loads(raw)
+    hashes = [ str(node.hash(f"listing:{i}")) for i in ids ]
+    return {"hashes": hashes},200
+
+@flask_app.route('/api/book-listing', methods=['POST'])
+def book_listing():
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON data"}, 400
+
+    message = f"book_listing|{json.dumps(data)}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/write-review', methods=['POST'])
+def write_review():
+    data = request.get_json()
+    if not data or 'listing_id' not in data or 'review' not in data:
+        return {"error": "Invalid JSON data"}, 400
+
+    listing_id = data['listing_id']
+    review = data['review']
+    message = f"write_review|{listing_id}|{review}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+@flask_app.route('/api/get-reviews', methods=['GET'])
+def get_reviews():
+    listing_id = request.args.get("listing_id")
+    if not listing_id:
+        return {"error": "Listing ID is required"}, 400
+
+    message = f"get_reviews|{listing_id}"
+    result = node.process_requests(message)
+    return {"result": result}, 200
+
+
+# # MUST BE DONE VIA FEATURE_FLAG
+# @flask_app.route('/get-url', methods=['GET'])
+# def get_url():
+#     #This becomes the URL of the peer node that the frontend determines the new peer will connect to
+#     return json({"url": "http://localhost:5000"})
+
+
+
 
 m = 7
 # The class DataStore is used to store the key value pairs at each node
@@ -48,6 +162,7 @@ class Node:
         self.successor = None
         self.finger_table = FingerTable(self.id)
         self.data_store = DataStore()
+        self.data_folder = DATA_FOLDER
 
     def hash(self, message: str) -> int:
         '''
@@ -57,65 +172,77 @@ class Node:
         digest = int(digest, 16) % pow(2,m)
         return digest
 
+    def upload_image_http(self, listing_hash: str, file_storage):
+        path = os.path.join(self.data_folder, file_storage.filename)
+        file_storage.save(path)
+
+        # attach filename to the JSON stored under hash:<listing_hash>
+        key = f"hash:{listing_hash}"
+        raw = self.data_store.data.get(key)
+        if raw:
+            lj = json.loads(raw)
+            imgs = lj.setdefault("images", [])
+            if file_storage.filename not in imgs:
+                imgs.append(file_storage.filename)
+                # write back both hash: and listing:id entries
+                self.data_store.data[key] = json.dumps(lj)
+                self.data_store.data[f"listing:{lj['id']}"] = json.dumps(lj)
+        return True
+
+    def get_image_path(self, filename: str) -> str | None:
+        path = os.path.join(self.data_folder, filename)
+        return path if os.path.exists(path) else None
+
+
     def process_requests(self, message: str) -> str:
         operation = message.split("|")[0]
         args = message.split("|")[1:]
         result = "Done"
 
         if operation == "add_listing":
+            print("Adding listing with args: ", args)
+
             listing_json = json.loads(args[0])
             listing_id = listing_json["id"]
             key = f"listing:{listing_id}"
+
             key_hash = self.hash(key)
+            print("insertion for ", listing_id, " with hash ", key_hash)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
 
             if ip == self.ip and port == self.port:
                 self.data_store.insert(key, json.dumps(listing_json))
-
-                # ✅ Use "location" not "city"
                 city = listing_json.get("location", "unknown").lower()
-                city_key = f"location:{city}"
-                city_key_hash = self.hash(city_key)
-                city_succ = self.find_successor(city_key_hash)
-                ip2, port2 = self.get_ip_port(city_succ)
-
-                if ip2 == self.ip and port2 == self.port:
-                    city_list = json.loads(self.data_store.data.get(city_key, "[]"))
-                    if listing_id not in city_list:
-                        city_list.append(listing_id)
-                        self.data_store.data[city_key] = json.dumps(city_list)
-                else:
-                    send_message(ip2, port2, f"update_city_index|{city}|{listing_id}")
 
                 # Zipcode Index
                 zipcode = str(int(float(listing_json.get("zipcode", 0))))
                 zip_key = f"zipcode:{zipcode}"
                 zip_key_hash = self.hash(zip_key)
                 zip_succ = self.find_successor(zip_key_hash)
-                ip3, port3 = self.get_ip_port(zip_succ)
+                ip_zip_idx, port_zip_idx = self.get_ip_port(zip_succ)
 
-                if ip3 == self.ip and port3 == self.port:
+                if ip_zip_idx == self.ip and port_zip_idx == self.port:
                     zip_list = json.loads(self.data_store.data.get(zip_key, "[]"))
                     if listing_id not in zip_list:
                         zip_list.append(listing_id)
                         self.data_store.data[zip_key] = json.dumps(zip_list)
                 else:
-                    send_message(ip3, port3, f"update_zipcode_index|{zipcode}|{listing_id}")
+                    send_message(ip_zip_idx, port_zip_idx, f"update_zipcode_index|{zipcode}|{listing_id}")
 
-                # Composite Index: City + Zip
-                composite_key = f"location_zip:{city}|{zipcode}"
-                composite_key_hash = self.hash(composite_key)
-                composite_succ = self.find_successor(composite_key_hash)
-                ip4, port4 = self.get_ip_port(composite_succ)
+                # City index
+                city_key = f"city:{city}"
+                city_key_hash = self.hash(city_key)
+                city_succ = self.find_successor(city_key_hash)
+                ip_city, ip_port = self.get_ip_port(city_succ)
 
-                if ip4 == self.ip and port4 == self.port:
-                    composite_list = json.loads(self.data_store.data.get(composite_key, "[]"))
-                    if listing_id not in composite_list:
-                        composite_list.append(listing_id)
-                        self.data_store.data[composite_key] = json.dumps(composite_list)
+                if ip_city == self.ip and ip_port == self.port:
+                    city_list = json.loads(self.data_store.data.get(city_key, "[]"))
+                    if listing_id not in city_list:
+                        city_list.append(listing_id)
+                        self.data_store.data[city_key] = json.dumps(city_list)
                 else:
-                    send_message(ip4, port4, f"update_location_zip_index|{city}|{zipcode}|{listing_id}")
+                    send_message(ip_city, ip_port, f"update_city_index|{city}|{listing_id}")
 
                 result = f"Listing {listing_id} added."
             else:
@@ -124,7 +251,7 @@ class Node:
         elif operation == "update_city_index":
             city = args[0].lower()
             listing_id = args[1]
-            city_key = f"location:{city}"
+            city_key = f"city:{city}"
             city_list = json.loads(self.data_store.data.get(city_key, "[]"))
             if listing_id not in city_list:
                 city_list.append(listing_id)
@@ -141,20 +268,9 @@ class Node:
                 self.data_store.data[zip_key] = json.dumps(zip_list)
             result = f"Zipcode index updated for {zipcode}"
 
-        elif operation == "update_location_zip_index":
-            city = args[0].lower()  # ✅ Already using .lower()
-            zipcode = args[1]
-            listing_id = args[2]
-            composite_key = f"location_zip:{city}|{zipcode}"
-            composite_list = json.loads(self.data_store.data.get(composite_key, "[]"))
-            if listing_id not in composite_list:
-                composite_list.append(listing_id)
-                self.data_store.data[composite_key] = json.dumps(composite_list)
-            result = f"Location+Zip index updated for {city} {zipcode}"
-
-        elif operation == "get_listings_by_location":
+        elif operation == "get_listings_by_city":
             city = args[0].lower()
-            city_key = f"location:{city}"
+            city_key = f"city:{city}"
             key_hash = self.hash(city_key)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
@@ -164,18 +280,40 @@ class Node:
             else:
                 result = send_message(ip, port, message)
 
-        elif operation == "get_listings_by_location_zip":
-            city = args[0].lower()
-            zipcode = args[1]
-            composite_key = f"location_zip:{city}|{zipcode}"
-            key_hash = self.hash(composite_key)
+        elif operation == "get_listings_by_zip":
+            zipcode = args[0]
+            key = f"zipcode:{zipcode}"
+            key_hash = self.hash(key)
+
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
 
             if ip == self.ip and port == self.port:
-                result = self.data_store.data.get(composite_key, "[]")
+                result = self.data_store.data.get(key, "[]")
             else:
                 result = send_message(ip, port, message)
+
+        elif operation == "get_listing_by_id":
+            id = args[0]
+            key = f"listing:{id}"
+            keyHash = self.hash(key)
+
+            print("query for ", key, " with hash ", keyHash)
+            # Find the appropriate node in the ring
+            succ = self.find_successor(int(keyHash))
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                raw = self.data_store.data.get(key)
+            else:
+                raw = send_message(ip, port, f"search_server|listing:{key}")
+            print("QUERY - ", id, " about to send: ", raw)
+
+            if not raw or raw == "NOT FOUND":
+                return "Listing not found"
+
+            lj = json.loads(raw)
+            return lj
 
         elif operation == "book_listing":
             booking_json = json.loads(args[0])
@@ -223,8 +361,8 @@ class Node:
         elif operation == 'insert_server':
             data = args[0].split(":")
             key = data[0]
-            listing_id = data[1]
-            self.data_store.insert(key, listing_id)
+            value = data[1]
+            self.data_store.insert(key, value)
             result = 'Inserted'
 
         elif operation == "delete_server":
@@ -273,6 +411,9 @@ class Node:
         elif operation == "notify":
             self.notify(int(args[0]), args[1], args[2])
             result = "Notified"
+        else:
+            result = "Unknown op"
+
 
         return str(result)
 
@@ -282,17 +423,61 @@ class Node:
         takes as arguments the connection and the address of the connected device.
         '''
         with conn:
-            # print('Connected by', addr)
+            raw = conn.recv(1024)
+            if not raw:
+                return
+            msg = raw.decode('utf-8').strip()
+            parts = msg.split("|")
+            op = parts[0]
 
-            data = conn.recv(1024)
+            if op == "upload_image":
+                # parts = ["upload_image", listing_hash, filename, filesize]
+                _, listing_hash, filename, fs = parts
+                file_size = int(fs)
+                self._handle_upload_image(conn, listing_hash, filename, file_size)
+                return
 
-            data = str(data.decode('utf-8'))
-            data = data.strip('\n')
-            # print(data)
-            data = self.process_requests(data)
-            # print('Sending', data)
-            data = bytes(str(data), 'utf-8')
-            conn.sendall(data)
+            if op == "get_image":
+                # parts = ["get_image", filename]
+                _, filename = parts
+                self._handle_get_image(conn, filename)
+                return
+
+            # otherwise, delegate to your existing process_requests()
+            response = self.process_requests(msg)
+            # if you returned bytes, send raw, else utf‑8 encode
+            if isinstance(response, bytes):
+                conn.sendall(response)
+            else:
+                conn.sendall(response.encode('utf-8'))
+
+
+    def _handle_upload_image(self, conn, listing_hash, filename, file_size):
+        # read exactly file_size bytes
+        received = b''
+        while len(received) < file_size:
+            chunk = conn.recv(min(4096, file_size - len(received)))
+            if not chunk:
+                break
+            received += chunk
+
+        # save to disk
+        path = os.path.join(self.data_folder, filename)
+        with open(path, 'wb') as f:
+            f.write(received)
+        conn.sendall(b"Image uploaded")
+
+    def _handle_get_image(self, conn, filename):
+        path = os.path.join(self.data_folder, filename)
+        if not os.path.exists(path):
+            conn.sendall(b"NOT FOUND")
+            return
+        with open(path, 'rb') as f:
+            while True:
+                chunk = f.read(4096)
+                if not chunk:
+                    break
+                conn.sendall(chunk)
 
 
     def start(self):
@@ -307,13 +492,6 @@ class Node:
         thread_for_stabalize.start()
         thread_for_fix_finger = threading.Thread(target=  self.fix_fingers)
         thread_for_fix_finger.start()
-
-        # Start the HTTP server in a separate thread
-        thread_for_http_server = threading.Thread(
-            target=self.start_http_server
-        )
-        thread_for_http_server.start() 
-
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.nodeinfo.ip, self.nodeinfo.port))
@@ -601,38 +779,6 @@ class Node:
 
     def get_forward_distance_2nodes(self,node2,node1):
         return pow(2,m) - self.get_backward_distance_2nodes(node2,node1)
-    
-    def start_http_server(self):
-        '''
-        Start a simple HTTP server to serve files from the current directory.
-        Dynamically inject the node's port into the frontend.
-        '''
-        os.chdir('./frontend/dist')  # Change directory to the frontend build folder
-
-        class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
-            def __init__(self, *args, node_port=None, **kwargs):
-                self.node_port = node_port
-                super().__init__(*args, **kwargs)
-
-            def do_GET(self):
-                if self.path == "/" or self.path == "/index.html":
-                    # Inject the node's port into the HTML
-                    with open("index.html", "r") as file:
-                        html = file.read()
-                    html = html.replace("{{NODE_PORT}}", str(self.node_port))
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/html")
-                    self.end_headers()
-                    self.wfile.write(html.encode("utf-8"))
-                else:
-                    super().do_GET()
-
-        handler = CustomHTTPRequestHandler
-        http_port = 8080  # Explicitly set the HTTP server port
-        with TCPServer(("", http_port), lambda *args, **kwargs: handler(*args, node_port=self.port, **kwargs)) as httpd:
-            print(f"Serving frontend on http://localhost:{http_port}")
-            httpd.serve_forever()
-
 # The class FingerTable is responsible for managing the finger table of each node.
 class FingerTable:
     '''
@@ -660,7 +806,9 @@ class FingerTable:
 
 def send_message(ip, port, message):
     s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-
+    #
+    # delay
+    #
     # connect to server on local computer
     s.connect((ip,port))
     s.send(message.encode('utf-8'))
@@ -668,9 +816,15 @@ def send_message(ip, port, message):
     s.close()
     return data.decode("utf-8")
 
+def start_flask_app():
+    flask_app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 ip = "127.0.0.1"
+#flask_thread = threading.Thread(target=start_flask_app)
+#flask_thread.daemon = True  # Daemon thread will exit when the main program exits
+#flask_thread.start()
 # This if statement is used to check if the node joining is the first node of the ring or not
 
 if len(sys.argv) == 3:
