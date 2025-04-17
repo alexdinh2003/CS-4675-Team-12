@@ -88,12 +88,6 @@ for zip in "${zips[@]}"; do
     response=$(send "get_listings_by_zip|$zip" $port2)
     echo "Response: $response"
 done
-
-
-
-
-
-
 # ========== TEARDOWN ==========
 echo
 echo "=== Tearing down nodes ==="
