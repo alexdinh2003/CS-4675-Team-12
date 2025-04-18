@@ -29,7 +29,7 @@ const getPeerUrl = async () => {
   }
 };
 
-export const enterListing = async (listingData: { host_id: string, host_password: string, listingName: string, address: string, hostName: string, price: string, roomType: string, minimumNights: string } | null, images: File[] | null) => {
+export const enterListing = async (listingData: { host_id: string, host_password: string, title: string, address: string, host_name: string, price: string, room_type: string, minimum_nights: string } | null, images: File[] | null) => {
   if (!listingData) {
     return null;
   }
