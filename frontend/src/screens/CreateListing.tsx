@@ -16,6 +16,8 @@ const CreateListing: React.FC = () => {
     hostName: user.host_name,
   });
 
+  const [images, setImages] = useState<File[]>([]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormValues((prevValues) => ({
@@ -24,12 +26,29 @@ const CreateListing: React.FC = () => {
     }));
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setImages(Array.from(e.target.files));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Form submitted:", formValues);
-
-    console.log(user);
-    await enterListing({ ...formValues, host_id: user.host_id, host_password: user.password_hash }) ;
+  
+    // Send form data as JSON
+    const formPayload = {
+      host_id: user.host_id,
+      host_password: user.password_hash,
+      ...formValues,
+    };
+  
+    console.log("Form Payload:", formPayload);
+  
+    console.log("Images Payload:", images);
+  
+    await enterListing(formPayload, images);
+  
     const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
     navigate("/host", { state: { user: result } });
   };
@@ -114,6 +133,19 @@ const CreateListing: React.FC = () => {
               onChange={handleChange}
               className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter minimum nights"
+            />
+          </div>
+          <div>
+            <label htmlFor="images" className="block text-left font-medium">
+              Upload Images
+            </label>
+            <input
+              type="file"
+              id="images"
+              name="images"
+              multiple
+              onChange={handleImageChange}
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <button

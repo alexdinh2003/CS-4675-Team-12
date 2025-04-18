@@ -98,9 +98,7 @@ const HostScreen: React.FC = () => {
               <div className="relative w-full h-64 overflow-hidden rounded-md">
                 {selectedListing.images && selectedListing.images.length > 0 ? (
                   <img
-                    src={URL.createObjectURL(
-                      selectedListing.images[selectedListing.currentImageIndex || 0]
-                    )}
+                    src={selectedListing.images[selectedListing.currentImageIndex || 0]} // Use the valid URL
                     alt={`Listing Image ${(selectedListing.currentImageIndex || 0) + 1}`}
                     className="object-cover w-full h-full rounded-md"
                   />

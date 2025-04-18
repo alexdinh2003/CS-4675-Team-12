@@ -23,12 +23,12 @@ os.makedirs(DATA_FOLDER, exist_ok=True)
 @flask_app.route('/api/upload-image', methods=['POST'])
 @cross_origin()
 def upload_image():
-    listing_hash = request.form.get("listing_hash")
+    id = request.form.get("id")
     file = request.files.get("file")
-    if not listing_hash or not file:
-        return {"error":"listing_hash and file required"},400
+    if not id or not file:
+        return {"error":"id and file required"},400
 
-    node.upload_image_http(listing_hash, file)
+    node.upload_image_http(str(id), file)
     return {"result":"Image uploaded"},200
 
 @flask_app.route('/api/get-listing-by-hash', methods=['GET'])
@@ -224,21 +224,32 @@ class Node:
         digest = int(digest, 16) % pow(2,m)
         return digest
 
-    def upload_image_http(self, listing_hash: str, file_storage):
+    def upload_image_http(self, id: str, file_storage):
+        # Save the image to the data folder
         path = os.path.join(self.data_folder, file_storage.filename)
         file_storage.save(path)
 
-        # attach filename to the JSON stored under hash:<listing_hash>
-        key = f"hash:{listing_hash}"
+        # Attach the filename to the JSON stored under hash:<listing_hash>
+        key = f"listing:{id}"  # Use the computed hash
+        print(f"Key for listing metadata: {key}")
         raw = self.data_store.data.get(key)
         if raw:
             lj = json.loads(raw)
+            print(f"Existing listing metadata: {lj}")
+
             imgs = lj.setdefault("images", [])
             if file_storage.filename not in imgs:
                 imgs.append(file_storage.filename)
-                # write back both hash: and listing:id entries
+                print(f"Updated images list: {imgs}")
+
+                # Write back both hash:<listing_hash> and listing:<listing_id> entries
                 self.data_store.data[key] = json.dumps(lj)
                 self.data_store.data[f"listing:{lj['id']}"] = json.dumps(lj)
+                print(f"Updated data_store for key: {key}")
+            else:
+                print(f"Image {file_storage.filename} already exists in images list.")
+        else:
+            print(f"No metadata found for key: {key}")
         return True
 
     def get_image_path(self, filename: str) -> str | None:

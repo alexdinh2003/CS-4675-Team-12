@@ -29,43 +29,62 @@ const getPeerUrl = async () => {
   }
 };
 
-export const enterListing = async (listingData: { host_id: string, host_password: string, listingName: string, address: string, hostName: string, price: string, roomType: string, minimumNights: string } | null) => {
-    if (!listingData) {
-        return null;
-    }
+export const enterListing = async (listingData: { host_id: string, host_password: string, listingName: string, address: string, hostName: string, price: string, roomType: string, minimumNights: string } | null, images: File[] | null) => {
+  if (!listingData) {
+    return null;
+  }
 
-    if (!url) {
-      const peerUrl = await getPeerUrl();
-      url = peerUrl;
-    }
+  if (!url) {
+    const peerUrl = await getPeerUrl();
+    url = peerUrl;
+  }
 
-    //TODO: Find out how to do ID generation in meeting
-    const id = Date.now() + Math.floor(Math.random() * 1000);
-    const addressInfo = await handleAddressEnter(listingData.address);
-    const message = { id: id, ...listingData, ...addressInfo };
-    console.log("Message to be sent:", message);
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  const addressInfo = await handleAddressEnter(listingData.address);
+  const message = { id: id, ...listingData, ...addressInfo, images };
+  console.log("Message to be sent:", message);
 
-    const apiUrl = `${url}/api/add-listing`;
+  const apiUrl = `${url}/api/add-listing`;
 
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(message),
-      });
+  try {
+    const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(message),
+    });
 
-      const result = await res.json();
+    const result = await res.json();
 
-      if (res.ok) {
-        console.log("Listing entered successfully:", result);
-      } else {
-        console.log("Error entering listing:", result.error);
+    if (res.ok) {
+      console.log("Listing entered successfully:", result);
+      if (images) {
+        for (const image of images) {
+          const formData = new FormData();
+          formData.append("id", id.toString());
+          formData.append("file", image);
+
+          const uploadUrl = `${url}/api/upload-image`;
+          const uploadRes = await fetch(uploadUrl, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (uploadRes.ok) {
+            console.log("Image uploaded successfully");
+          } else {
+            const uploadError = await uploadRes.json();
+            console.error("Error uploading image:", uploadError.error);
+          }
+        }
       }
-    } catch (error) {
-      console.error("Error:", error);
+    } else {
+      console.log("Error entering listing:", result.error);
     }
+  } catch (error) {
+    console.error("Error:", error);
+  }
 };
 
 export const requestMyListings = async (user: {currently_renting: string[], host_id: string, host_name: string, owning_listings: string[], password_hash: string}, userType: string) => {
@@ -93,6 +112,28 @@ export const requestMyListings = async (user: {currently_renting: string[], host
       if (res.ok) {
         console.log("Listing fetched successfully:", result);
         listings = [...listings, result];
+        let result_images = [];
+          for (const image of result.images) {
+            if (Object.keys(image).length === 0) continue;
+            console.log("Image:", image);
+            const imageUrl = `${url}/api/get-image/${image}`;
+            const imageRes = await fetch(imageUrl, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            console.log("Image response:", imageRes);
+            if (imageRes.ok) {
+              const imageBlob = await imageRes.blob();
+              console.log("Image blob:", imageBlob);
+              result_images.push(URL.createObjectURL(imageBlob));
+            } else {
+              console.error("Error fetching image:", await imageRes.json());
+            }
+          }
+          result.images = result_images;
+          console.log("Updated listing with images:", result);
       } else {
         console.log("Error fetching listings:", result.error);
       }
@@ -156,6 +197,28 @@ export const getListingsByLocation = async (addressInfo: { location: string; zip
               if (res.ok) {
                 console.log("Listing fetched successfully:", result);
                 listings = [...listings, result];
+                let result_images = [];
+                  for (const image of result.images) {
+                    if (Object.keys(image).length === 0) continue;
+                    console.log("Image:", image);
+                    const imageUrl = `${url}/api/get-image/${image}`;
+                    const imageRes = await fetch(imageUrl, {
+                      method: 'GET',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                    });
+                    console.log("Image response:", imageRes);
+                    if (imageRes.ok) {
+                      const imageBlob = await imageRes.blob();
+                      console.log("Image blob:", imageBlob);
+                      result_images.push(URL.createObjectURL(imageBlob));
+                    } else {
+                      console.error("Error fetching image:", await imageRes.json());
+                    }
+                  }
+                  result.images = result_images;
+                  console.log("Updated listing with images:", result);
               } else {
                 console.log("Error fetching listings:", result.error);
               }
@@ -173,65 +236,6 @@ export const getListingsByLocation = async (addressInfo: { location: string; zip
       console.error("Error:", error);
       return null;
   }
-};
-
-const getListingsByHashes = async (hashes: string[]) => {
-  for(const hash of hashes) {
-    console.log("Hash:", hash);
-    const apiUrl = `${url}/api/get-listings-by-hash/${hash}`;
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const listing = await res.json();
-      if (res.ok) {
-        console.log("Listing fetched successfully:", listing);
-        const imageBlobs = await getImagesByFileName(listing.images);
-        listings = [...listings, { ...listing, images: imageBlobs }];
-        console.log("Listings:", listings);
-      } else {
-        console.log("Error fetching listings:", listing.error);
-        return null;
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      return null;
-    }
-  }
-
-}
-
-const getImagesByFileName = async (fileNames: string[]) => {
-  const imageBlobs: Blob[] = [];
-  for (const filename of fileNames) {
-    const apiUrl = `${url}/api/get-images/${filename}`;
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const imageBlob = await res.blob();
-      if (res.ok) {
-        console.log("Image fetched successfully:", imageBlob);
-        imageBlobs.push(imageBlob);
-      } else {
-        console.log("Error fetching image. Response status:", res.status);
-        return null;
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      return null;
-    }
-  }
-
-  return imageBlobs;
 };
 
 export async function createAccount(user: { host_id: string; host_password: string, host_name: string }) {
