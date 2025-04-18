@@ -306,7 +306,7 @@ class Node:
             if ip == self.ip and port == self.port:
                 raw = self.data_store.data.get(key)
             else:
-                raw = send_message(ip, port, f"search_server|listing:{key}")
+                raw = send_message(ip, port, f"search_server|{key}")
             print("QUERY - ", id, " about to send: ", raw)
 
             if not raw or raw == "NOT FOUND":
@@ -449,7 +449,7 @@ class Node:
             if isinstance(response, bytes):
                 conn.sendall(response)
             else:
-                conn.sendall(response.encode('utf-8'))
+                conn.sendall(response)
 
 
     def _handle_upload_image(self, conn, listing_hash, filename, file_size):
