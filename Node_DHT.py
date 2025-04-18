@@ -414,18 +414,25 @@ class Node:
             key_hash = self.hash(key)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
-
-            if ip == self.ip and port == self.port:
+            renter_id = booking_json.get("id", "")
+            renter_password = booking_json.get("renter_password", "")
+            user_key = f"user:{renter_id}:{renter_password}"
+            user_exists = False
+            user_data = {}
+            try:
+                user_data_resp = str(send_message(ip, port, f"get_user_info|{renter_id}|{renter_password}"))
+                user_data = json.loads(user_data_resp)
+                user_exists = True
+            except:
+                print("Unknown user requesting booking..")
+                    
+            
+            if user_exists and ip == self.ip and port == self.port:
                 self.data_store.insert(key, json.dumps(booking_json))
-
                 # Update currently_renting for renter
-                renter_id = booking_json.get("id", "")
-                renter_password = booking_json.get("renter_password", "")
                 listing_id = booking_json.get("listing_id", "")
                 print("UPDATING RENTING for: ", renter_id, " to ", listing_id)
                 if renter_password and listing_id:
-                    user_key = f"user:{renter_id}:{renter_password}"
-                    user_data = json.loads(self.data_store.data.get(user_key, "{}"))
                     currently_renting = user_data.get("currently_renting", [])
                     print("OLD USER_DATA: ", user_data)
                     if listing_id not in currently_renting:
@@ -438,8 +445,10 @@ class Node:
                     res_user = send_message(u_ip, u_port, "update_user_info|" + renter_id + "|" + renter_password + "|" + json.dumps(user_data))
 
                 result = f"Booking {booking_id} added."
-            else:
+            elif user_exists:
                 result = send_message(ip, port, message)
+            else:
+                result = "Unknown user.."
 
         elif operation == "update_city_index":
             city = args[0].lower()
