@@ -77,6 +77,8 @@ const GuestListings: React.FC = () => {
               {/* Book Listing Button */}
               <button
                 onClick={async () => {
+                  console.log("Booking listing with user data: ")
+                  console.log(user)
                   if(await bookListing(user.host_id, user.password_hash, selectedListing.id)) {
                     const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
                     navigate("/guest/", { state: { user: result } });
