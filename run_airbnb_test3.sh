@@ -17,6 +17,10 @@ sleep 1
 nohup python3 -u Node_DHT.py $port3 $port1       > "$log_dir/node3.log" 2>&1 &
 sleep 1
 
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 5
+
 # Helper
 send() {
     echo -e "$1\n" | nc localhost "$2"
@@ -47,6 +51,10 @@ for i in "${!users[@]}"; do
     send "register_user|$user" "$port"
 done
 
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
+
 # ========== ADD LISTINGS ==========
 echo
 echo "=== Adding Listings ==="
@@ -70,6 +78,10 @@ for i in "${!listings[@]}"; do
     send "add_listing|$listing" "$port"
 done
 
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
+
 # ========== BOOKINGS ==========
 echo
 echo "=== Creating Bookings ==="
@@ -85,6 +97,9 @@ for i in "${!bookings[@]}"; do
     send "book_listing|$booking" "$port"
 done
 
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
 # ========== VERIFY USER INFO ==========
 echo
 echo "=== Verifying Users' Currently Renting Lists ==="
@@ -92,7 +107,9 @@ for id_pw in "u2|pw_u2" "u3|pw_u3" "u4|pw_u4" "u10|pw_u10"; do
     echo "→ ${id_pw#*|}:"
     send "get_user_info|$id_pw" "$port1"
 done
-
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
 # ========== QUERY BY CITY ==========
 echo
 echo "=== Individual City Queries ==="
@@ -102,6 +119,9 @@ for city in "${cities[@]}"; do
     echo "Query for city: $city"
     send "get_listings_by_city|$city" $port2
 done
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
 
 # ========== QUERY BY ZIPCODE ==========
 echo
@@ -112,6 +132,22 @@ for zip in "${zips[@]}"; do
     echo "Query for zipcode: $zip"
     send "get_listings_by_zip|$zip" $port1
 done
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
+
+# ========== QUERY BY ZIPCODE ==========
+echo
+echo "=== Individual Zipcode Queries ==="
+zips=(98101 10001 94121)
+for zip in "${zips[@]}"; do
+    echo
+    echo "Query for zipcode: $zip"
+    send "get_listings_by_zip|$zip" $port1
+done
+# 💤 Allow user data to propagate
+echo "Waiting for user registration to stabilize..."
+sleep 10
 
 # ========== TEARDOWN ==========
 #echo

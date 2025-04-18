@@ -215,6 +215,13 @@ class Node:
         self.finger_table = FingerTable(self.id)
         self.data_store = DataStore()
         self.data_folder = DATA_FOLDER
+        threading.Thread(target=self.run_periodic_tasks, daemon=True).start()
+    
+    def run_periodic_tasks(self):
+        while True:
+            self.stabilize()
+            self.fix_fingers()
+            time.sleep(1)
 
     def hash(self, message: str) -> int:
         '''
