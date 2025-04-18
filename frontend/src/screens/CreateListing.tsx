@@ -8,12 +8,12 @@ const CreateListing: React.FC = () => {
   const user = location.state?.user;
 
   const [formValues, setFormValues] = useState({
-    listingName: "",
+    title: "",
     address: "",
     price: "",
-    roomType: "",
-    minimumNights: "",
-    hostName: user.host_name,
+    room_type: "",
+    minimum_nights: "",
+    host_name: user.host_name,
   });
 
   const [images, setImages] = useState<File[]>([]);
