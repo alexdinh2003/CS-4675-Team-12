@@ -306,7 +306,7 @@ class Node:
             if ip == self.ip and port == self.port:
                 raw = self.data_store.data.get(key)
             else:
-                raw = send_message(ip, port, f"search_server|listing:{key}")
+                raw = send_message(ip, port, f"search_server|{key}")
             print("QUERY - ", id, " about to send: ", raw)
 
             if not raw or raw == "NOT FOUND":
@@ -444,7 +444,7 @@ class Node:
                 return
 
             # otherwise, delegate to your existing process_requests()
-            response = self.process_requests(msg)
+            response = str(self.process_requests(msg))
             # if you returned bytes, send raw, else utf‑8 encode
             if isinstance(response, bytes):
                 conn.sendall(response)

@@ -1,4 +1,5 @@
 JOINING RING
+Exception in thread Thread-2 (fix_fingers):
 ===============================================
 STABILIZING
 ===============================================
@@ -12,7 +13,7 @@ Entry:  2  Interval start:  33  Successor:  None
 Entry:  3  Interval start:  37  Successor:  None
 Entry:  4  Interval start:  45  Successor:  None
 Entry:  5  Interval start:  61  Successor:  None
-Entry:  6  Interval start:  93  Successor:  100
+Entry:  6  Interval start:  93  Successor:  None
 ===============================================
 DATA STORE
 ===============================================
@@ -22,15 +23,30 @@ DATA STORE
 
 
 
+Traceback (most recent call last):
+  File "/Users/shreekrishnarbhat/.pyenv/versions/3.13.1/lib/python3.13/threading.py", line 1041, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "/Users/shreekrishnarbhat/.pyenv/versions/3.13.1/lib/python3.13/threading.py", line 992, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/shreekrishnarbhat/dev/chord_protocol/Node_DHT.py", line 718, in fix_fingers
+    data = self.find_successor(finger)
+  File "/Users/shreekrishnarbhat/dev/chord_protocol/Node_DHT.py", line 609, in find_successor
+    data = send_message(ip , port, "get_successor") # Note that this returns the direct successor
+  File "/Users/shreekrishnarbhat/dev/chord_protocol/Node_DHT.py", line 813, in send_message
+    s.connect((ip,port))
+    ~~~~~~~~~^^^^^^^^^^^
+ConnectionRefusedError: [Errno 61] Connection refused
 Adding listing with args:  ['{"id":"l3","title":"Charming SF Studio","host_id":"u3","host_name":"Carol","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Entire home","price":175,"minimum_nights":1,"number_of_reviews":40,"last_review":"2023-02-12","reviews_per_month":1.2,"calculated_host_listings_count":3,"availability_365":300,"zipcode":94121}']
 insertion for  l3  with hash  6
 query for  listing:l3  with hash  6
-QUERY -  l3  about to send:  NOT FOUND
+QUERY -  l3  about to send:  {"id": "l3", "title": "Charming SF Studio", "host_id": "u3", "host_name": "Carol", "location": "San Francisco", "latitude": 37.7, "longitude": -122.4, "room_type": "Entire home", "price": 175, "minimum_nights": 1, "number_of_reviews": 40, "last_review": "2023-02-12", "reviews_per_month": 1.2, "calculated_host_listings_count": 3, "availability_365": 300, "zipcode": 94121}
 Adding listing with args:  ['{"id":"l6","title":"SF Modern Flat","host_id":"u6","host_name":"Fiona","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Apartment","price":130,"minimum_nights":2,"number_of_reviews":25,"last_review":"2023-04-01","reviews_per_month":0.8,"calculated_host_listings_count":4,"availability_365":160,"zipcode":94121}']
 insertion for  l6  with hash  82
 query for  listing:l6  with hash  82
-QUERY -  l6  about to send:  NOT FOUND
+QUERY -  l6  about to send:  {"id": "l6", "title": "SF Modern Flat", "host_id": "u6", "host_name": "Fiona", "location": "San Francisco", "latitude": 37.7, "longitude": -122.4, "room_type": "Apartment", "price": 130, "minimum_nights": 2, "number_of_reviews": 25, "last_review": "2023-04-01", "reviews_per_month": 0.8, "calculated_host_listings_count": 4, "availability_365": 160, "zipcode": 94121}
 Adding listing with args:  ['{"id":"l9","title":"SF Downtown Cabin","host_id":"u9","host_name":"Ian","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Cabin","price":110,"minimum_nights":2,"number_of_reviews":15,"last_review":"2023-01-15","reviews_per_month":0.5,"calculated_host_listings_count":2,"availability_365":170,"zipcode":94121}']
 insertion for  l9  with hash  49
 query for  listing:l9  with hash  49
-QUERY -  l9  about to send:  NOT FOUND
+QUERY -  l9  about to send:  {"id": "l9", "title": "SF Downtown Cabin", "host_id": "u9", "host_name": "Ian", "location": "San Francisco", "latitude": 37.7, "longitude": -122.4, "room_type": "Cabin", "price": 110, "minimum_nights": 2, "number_of_reviews": 15, "last_review": "2023-01-15", "reviews_per_month": 0.5, "calculated_host_listings_count": 2, "availability_365": 170, "zipcode": 94121}
