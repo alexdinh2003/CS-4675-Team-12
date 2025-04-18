@@ -293,7 +293,7 @@ class Node:
                         user_data["owning_listings"] = owning_listings
                         self.data_store.data[user_key] = json.dumps(user_data)
                     else:
-                        send_message(ip_user, port_user, f"update_user_owning|{password_hash}|{listing_id}")
+                        send_message(ip_user, port_user, f"update_user_owning|{host_id}|{password_hash}|{listing_id}")
 
                 city = listing_json.get("location", "unknown").lower()
 
@@ -333,15 +333,20 @@ class Node:
         elif operation == "update_user_owning":
             host_id = args[0]
             password_hash = args[1]
-            listing_id = args[1]
-            user_key = f"user:{host_id}|{password_hash}"
+            listing_id = args[2]  # Fixed: was mistakenly set to args[1] before
+            user_key = f"user:{host_id}:{password_hash}"
+            
+            # Retrieve existing user data, or initialize if not found
             user_data = json.loads(self.data_store.data.get(user_key, '{}'))
             owning_listings = user_data.get("owning_listings", [])
+            
             if listing_id not in owning_listings:
                 owning_listings.append(listing_id)
+            
             user_data["owning_listings"] = owning_listings
             self.data_store.data[user_key] = json.dumps(user_data)
-            result = f"Updated owning listings for {password_hash}"
+            
+            result = f"Updated owning listings for {host_id}"
 
         elif operation == "register_user":
             user_json = json.loads(args[0])
@@ -964,17 +969,19 @@ class FingerTable:
                 print('Entry: ', index, " Interval start: ", entry[0]," Successor: ", entry[1].id)
 
 
-def send_message(ip, port, message):
-    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    #
-    # delay
-    #
-    # connect to server on local computer
-    s.connect((ip,port))
-    s.send(message.encode('utf-8'))
-    data = s.recv(1024)
-    s.close()
-    return data.decode("utf-8")
+def send_message(ip, port, message, retries=3, delay=0.5):
+    for attempt in range(retries):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((ip, port))
+                s.sendall(message.encode())
+                return s.recv(4096).decode()
+        except ConnectionRefusedError as e:
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                print(f"[WARN] Connection refused to {ip}:{port} after {retries} attempts.")
+                return "ERROR: Connection refused"
 
 def start_flask_app():
     flask_app.run(host="0.0.0.0", port=5000, debug=False)

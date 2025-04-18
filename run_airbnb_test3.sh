@@ -88,9 +88,9 @@ done
 # ========== VERIFY USER INFO ==========
 echo
 echo "=== Verifying Users' Currently Renting Lists ==="
-for pw in "pw_u2" "pw_u3" "pw_u4" "pw_u10"; do
-    echo "→ $pw:"
-    send "get_user_info|$pw" "$port1"
+for id_pw in "u2|pw_u2" "u3|pw_u3" "u4|pw_u4" "u10|pw_u10"; do
+    echo "→ ${id_pw#*|}:"
+    send "get_user_info|$id_pw" "$port1"
 done
 
 # ========== QUERY BY CITY ==========
@@ -114,9 +114,9 @@ for zip in "${zips[@]}"; do
 done
 
 # ========== TEARDOWN ==========
-echo
-echo "=== Tearing Down Nodes ==="
-pkill -f Node_DHT.py || true
-sleep 1
-echo "✅ Test complete. Logs saved to $log_dir/"
+#echo
+#echo "=== Tearing Down Nodes ==="
+#pkill -f Node_DHT.py || true
+#sleep 1
+#echo "✅ Test complete. Logs saved to $log_dir/"
 
