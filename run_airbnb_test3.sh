@@ -53,7 +53,7 @@ done
 
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 10
+sleep 5
 
 # ========== ADD LISTINGS ==========
 echo
@@ -80,7 +80,7 @@ done
 
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 10
+sleep 5
 
 # ========== BOOKINGS ==========
 echo
@@ -99,7 +99,7 @@ done
 
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 10
+sleep 5
 # ========== VERIFY USER INFO ==========
 echo
 echo "=== Verifying Users' Currently Renting Lists ==="
@@ -134,7 +134,7 @@ for zip in "${zips[@]}"; do
 done
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 10
+sleep 5
 
 # ========== QUERY BY ZIPCODE ==========
 echo
@@ -147,12 +147,12 @@ for zip in "${zips[@]}"; do
 done
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 10
+sleep 5
 
 # ========== TEARDOWN ==========
-#echo
-#echo "=== Tearing Down Nodes ==="
-#pkill -f Node_DHT.py || true
-#sleep 1
-#echo "✅ Test complete. Logs saved to $log_dir/"
+# echo
+# echo "=== Tearing Down Nodes ==="
+# pkill -f Node_DHT.py || true
+# sleep 1
+# echo "✅ Test complete. Logs saved to $log_dir/"
 

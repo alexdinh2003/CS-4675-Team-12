@@ -380,7 +380,19 @@ class Node:
             if isinstance(result, dict):
                 return json.dumps(result)
             return str(result)
-
+        elif operation == "update_user_info":
+            id = args[0]
+            password_hash = args[1]
+            user_key = f"user:{id}:{password_hash}"
+            key_hash = self.hash(user_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+            print("Received update request for for user: ", user_key, " with data ", args[2])
+            if ip == self.ip and port == self.port:
+                self.data_store.data[user_key] = args[2]
+            else:
+                result = send_message(ip, port, message)
+            print("About to send user info: ", result)
         elif operation == "get_user_info":
             id = args[0]
             password_hash = args[1]
@@ -393,6 +405,7 @@ class Node:
                 result = self.data_store.data.get(user_key, "NOT FOUND")
             else:
                 result = send_message(ip, port, message)
+            print("About to send user info: ", result)
 
         elif operation == "book_listing":
             booking_json = json.loads(args[0])
@@ -409,14 +422,20 @@ class Node:
                 renter_id = booking_json.get("id", "")
                 renter_password = booking_json.get("renter_password", "")
                 listing_id = booking_json.get("listing_id", "")
+                print("UPDATING RENTING for: ", renter_id, " to ", listing_id)
                 if renter_password and listing_id:
                     user_key = f"user:{renter_id}:{renter_password}"
                     user_data = json.loads(self.data_store.data.get(user_key, "{}"))
                     currently_renting = user_data.get("currently_renting", [])
+                    print("OLD USER_DATA: ", user_data)
                     if listing_id not in currently_renting:
                         currently_renting.append(listing_id)
                     user_data["currently_renting"] = currently_renting
-                    self.data_store.data[user_key] = json.dumps(user_data)
+                    print("NEW USER_DATA: ", user_data)
+                    key_hash = self.hash(user_key)
+                    user_succ = self.find_successor(key_hash)
+                    u_ip, u_port = self.get_ip_port(succ)
+                    res_user = send_message(u_ip, u_port, "update_user_info|" + renter_id + "|" + renter_password + "|" + json.dumps(user_data))
 
                 result = f"Booking {booking_id} added."
             else:
@@ -469,7 +488,7 @@ class Node:
 
         elif operation == "get_listing_by_id":
             id = args[0]
-            key = f"listing:{id}"
+            key = f"listing:{id}" # listing:listing:{id}
             keyHash = self.hash(key)
 
             print("query for ", key, " with hash ", keyHash)
@@ -480,7 +499,7 @@ class Node:
             if ip == self.ip and port == self.port:
                 raw = self.data_store.data.get(key)
             else:
-                raw = send_message(ip, port, f"search_server|listing:{key}")
+                raw = send_message(ip, port, f"search_server|{key}")
             print("QUERY - ", id, " about to send: ", raw)
 
             if not raw or raw == "NOT FOUND":
@@ -819,12 +838,12 @@ class Node:
         '''
         while True:
             if self.successor is None:
-                time.sleep(10)
+                time.sleep(5)
                 continue
             data = "get_predecessor"
 
             if self.successor.ip == self.ip  and self.successor.port == self.port:
-                time.sleep(10)
+                time.sleep(5)
             result = send_message(self.successor.ip , self.successor.port , data)
             if result == "None" or len(result) == 0:
                 send_message(self.successor.ip , self.successor.port, "notify|"+ str(self.id) + "|" + self.nodeinfo.__str__())
@@ -991,7 +1010,7 @@ def send_message(ip, port, message, retries=3, delay=0.5):
                 return "ERROR: Connection refused"
 
 def start_flask_app():
-    flask_app.run(host="0.0.0.0", port=5000, debug=False)
+    flask_app.run(host="0.0.0.0", port=5080, debug=False)
 
 
 
