@@ -1,19 +1,21 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { bookListing, loginUser } from "../utils/handle-apis";
 
 const GuestListings: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { listings } = location.state || { listings: [] };
-
+  const user = location.state?.user;
+  const { listings = [] } = location.state || {};
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const openModal = (listing: any) => {
     setSelectedListing({
       ...listing,
-      currentImageIndex: 0, // ✅ Initialize image index
+      currentImageIndex: 0,
     });
+    console.log("User:", user);
     setIsModalOpen(true);
   };
 
@@ -25,7 +27,7 @@ const GuestListings: React.FC = () => {
   return (
     <div className="w-screen h-screen flex justify-center items-center bg-gray-600">
       <button
-        onClick={() => navigate("/guest")}
+        onClick={() => navigate("/guest", { state: { user: user } })}
         className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
       >
         Back
@@ -74,9 +76,15 @@ const GuestListings: React.FC = () => {
 
               {/* Book Listing Button */}
               <button
-                onClick={() => {
-                  //TODO: call api to book listing
-                  console.log("Booking listing:", selectedListing);
+                onClick={async () => {
+                  console.log("Booking listing with user data: ")
+                  console.log(user)
+                  if(await bookListing(user.host_id, user.password_hash, selectedListing.id)) {
+                    const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
+                    navigate("/guest/", { state: { user: result } });
+                  } else {
+                    alert("Booking failed. Please try again.");
+                  }
                 }}
                 className="text-white px-4 py-2 rounded-md hover:bg-blue-600 !bg-blue-500"
               >
@@ -90,9 +98,7 @@ const GuestListings: React.FC = () => {
               <div className="relative w-full h-64 overflow-hidden rounded-md">
                 {selectedListing.images && selectedListing.images.length > 0 ? (
                   <img
-                    src={URL.createObjectURL(
-                      selectedListing.images[selectedListing.currentImageIndex || 0]
-                    )}
+                    src={selectedListing.images[selectedListing.currentImageIndex || 0]} // Use the valid URL
                     alt={`Listing Image ${(selectedListing.currentImageIndex || 0) + 1}`}
                     className="object-cover w-full h-full rounded-md"
                   />

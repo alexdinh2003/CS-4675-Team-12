@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
 
 # Node ports (ensure these match your Node_DHT.py configuration)
@@ -45,6 +46,20 @@ listings=(
 '{"id":"l11","title":"SF Cozy Cottage 2","host_id":"u10","host_name":"Jack","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Cottage","price":95,"minimum_nights":1,"number_of_reviews":7,"last_review":"2023-04-01","reviews_per_month":0.2,"calculated_host_listings_count":1,"availability_365":150,"zipcode":94121}'
 )
 
+user=(
+'{"host_id":"u1","host_password":"u1_pass","host_name":"Alice", listing="l1"}'
+'{"host_id":"u2","host_password":"u2_pass", "host_name":"Bob", listing="l2"}'
+'{"host_id":"u3","host_name":"Carol","host_password":"u3_pass",  listing="l3"}'
+'{"host_id":"u4","host_name":"Dana","host_password":"u4_pass",  listing="l4"}'
+'{"host_id":"u5","host_name":"Evan","host_password":"u5_pass",  listing="l5"}'
+'{"host_id":"u6","host_name":"Fiona","host_password":"u6_pass",  listing="l6"}'
+'{"host_id":"u7","host_name":"George","host_password":"u7_pass",  listing="l7"}'
+'{"host_id":"u8","host_name":"Hannah","host_password":"u8_pass",  listing="l8"}'
+'{"host_id":"u9","host_name":"Ian","host_password":"u9_pass", listing="l9"}'
+'{"host_id":"u10","host_name":"Jack","host_password":"u10_pass",  listing="l10"}'
+'{"host_id":"u10","host_name":"Jack","host_password":"u10_pass",  listing="l11"}'
+)
+
 
 
 echo "=== Adding 10 listings using a loop ==="
@@ -72,7 +87,7 @@ for city in "${cities[@]}"; do
     echo
     echo "Query for city: $city"
     # send query to one of the nodes (using port1 as example)
-    response=$(send "get_listings_by_city|$city" $port1)
+    response=$(send "get_listings_by_city|$city" $port2)
     echo "Response: $response"
 done
 
@@ -85,7 +100,7 @@ for zip in "${zips[@]}"; do
     echo
     echo "Query for zipcode: $zip"
     # send query to one of the nodes (using port2 as example)
-    response=$(send "get_listings_by_zip|$zip" $port2)
+    response=$(send "get_listings_by_zip|$zip" $port1)
     echo "Response: $response"
 done
 # ========== TEARDOWN ==========
