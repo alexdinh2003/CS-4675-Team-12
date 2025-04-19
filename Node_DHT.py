@@ -649,7 +649,7 @@ class Node:
             if isinstance(response, bytes):
                 conn.sendall(response)
             else:
-                conn.sendall(response.encode('utf-8'))
+                conn.sendall(response)
 
 
     def _handle_upload_image(self, conn, listing_hash, filename, file_size):
