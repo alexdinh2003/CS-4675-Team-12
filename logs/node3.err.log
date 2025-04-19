@@ -1,0 +1,30 @@
+Exception in thread Thread-22 (serve_requests):
+Traceback (most recent call last):
+  File "C:\Users\dinhh\AppData\Local\Programs\Python\Python311\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\dinhh\AppData\Local\Programs\Python\Python311\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "D:\GT's Workspace\spring 2025\CS 4675\project\CS-4675-Team-12\Node_DHT.py", line 452, in serve_requests
+    conn.sendall(response.encode('utf-8'))
+                 ^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'encode'
+Exception in thread Thread-35 (serve_requests):
+Traceback (most recent call last):
+  File "C:\Users\dinhh\AppData\Local\Programs\Python\Python311\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\dinhh\AppData\Local\Programs\Python\Python311\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "D:\GT's Workspace\spring 2025\CS 4675\project\CS-4675-Team-12\Node_DHT.py", line 452, in serve_requests
+    conn.sendall(response.encode('utf-8'))
+                 ^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'encode'
+Exception in thread Thread-64 (serve_requests):
+Traceback (most recent call last):
+  File "C:\Users\dinhh\AppData\Local\Programs\Python\Python311\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\dinhh\AppData\Local\Programs\Python\Python311\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "D:\GT's Workspace\spring 2025\CS 4675\project\CS-4675-Team-12\Node_DHT.py", line 452, in serve_requests
+    conn.sendall(response.encode('utf-8'))
+                 ^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'encode'

@@ -449,7 +449,7 @@ class Node:
             if isinstance(response, bytes):
                 conn.sendall(response)
             else:
-                conn.sendall(response)
+                conn.sendall(response.encode('utf-8'))
 
 
     def _handle_upload_image(self, conn, listing_hash, filename, file_size):
@@ -749,6 +749,22 @@ class Node:
 
         '''
         return string_format.strip().split('|')[0] , int(string_format.strip().split('|')[1])
+        # sf = string_format.strip()
+        # # If there is no successor/predecessor yet:
+        # if sf == "None":
+        #     raise ValueError("Requested Chord operation returned no node (\"None\")")
+
+        # parts = sf.split('|')
+        # if len(parts) != 2:
+        #     raise ValueError(f"Invalid node‑address format: {sf!r}")
+
+        # ip, port_str = parts
+        # try:
+        #     port = int(port_str)
+        # except ValueError:
+        #     raise ValueError(f"Invalid port in node‑address: {port_str!r}")
+
+        return ip, port
 
     def get_backward_distance(self, node1):
 

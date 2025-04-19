@@ -236,7 +236,13 @@ def main():
         elif choice == '10':
             city = input("City for attribute-lookup test: ").strip().lower()
             raw, _ = send(ip, port, f"get_listings_by_city|{city}")
-            ids = json.loads(raw)
+            try:
+                ids = json.loads(raw)
+            except json.JSONDecodeError:
+                ids = []
+            if not ids:
+                print(f"No listings found in '{city}'. Cannot benchmark direct vs attribute retrieval.")
+                continue
             hashes = [compute_hash(f"listing:{i}") for i in ids]
             direct = bench_direct_hash(ip, port, hashes)
             overhead, per_hash = bench_attribute_lookup(ip, port, city)

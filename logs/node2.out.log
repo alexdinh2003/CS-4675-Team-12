@@ -1,0 +1,186 @@
+JOINING RING
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  None
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  None
+Entry:  5  Interval start:  98  Successor:  None
+Entry:  6  Interval start:  2  Successor:  None
+===============================================
+DATA STORE
+===============================================
+{}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+predecessor ID:  29
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  None
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  100
+Entry:  5  Interval start:  98  Successor:  None
+Entry:  6  Interval start:  2  Successor:  None
+===============================================
+DATA STORE
+===============================================
+{}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
+Adding listing with args:  ['{"id":"l2","title":"Manhattan Apartment","host_id":"u2","host_name":"Bob","location":"New York","latitude":40.7,"longitude":-73.9,"room_type":"Entire home","price":200,"minimum_nights":3,"number_of_reviews":28,"last_review":"2023-03-15","reviews_per_month":0.7,"calculated_host_listings_count":2,"availability_365":150,"zipcode":10001}']
+insertion for  l2  with hash  109
+query for  listing:l2  with hash  109
+QUERY -  l2  about to send:  {"id": "l2", "title": "Manhattan Apartment", "host_id": "u2", "host_name": "Bob", "location": "New York", "latitude": 40.7, "longitude": -73.9, "room_type": "Entire home", "price": 200, "minimum_nights": 3, "number_of_reviews": 28, "last_review": "2023-03-15", "reviews_per_month": 0.7, "calculated_host_listings_count": 2, "availability_365": 150, "zipcode": 10001}
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+predecessor ID:  29
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  100
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  100
+Entry:  5  Interval start:  98  Successor:  None
+Entry:  6  Interval start:  2  Successor:  None
+===============================================
+DATA STORE
+===============================================
+{}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+predecessor ID:  29
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  100
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  100
+Entry:  5  Interval start:  98  Successor:  None
+Entry:  6  Interval start:  2  Successor:  29
+===============================================
+DATA STORE
+===============================================
+{'zipcode:94121': '["l3"]', 'city:san francisco': '["l3"]'}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
+Adding listing with args:  ['{"id":"l5","title":"NYC Loft","host_id":"u5","host_name":"Evan","location":"New York","latitude":40.7,"longitude":-73.9,"room_type":"Loft","price":120,"minimum_nights":2,"number_of_reviews":18,"last_review":"2023-01-20","reviews_per_month":0.6,"calculated_host_listings_count":2,"availability_365":220,"zipcode":10001}']
+insertion for  l5  with hash  84
+query for  listing:l5  with hash  84
+QUERY -  l5  about to send:  {"id": "l5", "title": "NYC Loft", "host_id": "u5", "host_name": "Evan", "location": "New York", "latitude": 40.7, "longitude": -73.9, "room_type": "Loft", "price": 120, "minimum_nights": 2, "number_of_reviews": 18, "last_review": "2023-01-20", "reviews_per_month": 0.6, "calculated_host_listings_count": 2, "availability_365": 220, "zipcode": 10001}
+Adding listing with args:  ['{"id":"l7","title":"Seattle Loft","host_id":"u7","host_name":"George","location":"Seattle","latitude":47.6,"longitude":-122.3,"room_type":"Loft","price":140,"minimum_nights":3,"number_of_reviews":22,"last_review":"2023-02-28","reviews_per_month":0.9,"calculated_host_listings_count":3,"availability_365":210,"zipcode":98101}']
+insertion for  l7  with hash  37
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+predecessor ID:  29
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  100
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  100
+Entry:  5  Interval start:  98  Successor:  100
+Entry:  6  Interval start:  2  Successor:  29
+===============================================
+DATA STORE
+===============================================
+{'zipcode:94121': '["l3", "l6"]', 'city:san francisco': '["l3", "l6"]', 'listing:l7': '{"id": "l7", "title": "Seattle Loft", "host_id": "u7", "host_name": "George", "location": "Seattle", "latitude": 47.6, "longitude": -122.3, "room_type": "Loft", "price": 140, "minimum_nights": 3, "number_of_reviews": 22, "last_review": "2023-02-28", "reviews_per_month": 0.9, "calculated_host_listings_count": 3, "availability_365": 210, "zipcode": 98101}'}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
+Adding listing with args:  ['{"id":"l8","title":"NYC Studio","host_id":"u8","host_name":"Hannah","location":"New York","latitude":40.7,"longitude":-73.9,"room_type":"Studio","price":90,"minimum_nights":1,"number_of_reviews":12,"last_review":"2023-03-05","reviews_per_month":0.4,"calculated_host_listings_count":1,"availability_365":190,"zipcode":10001}']
+insertion for  l8  with hash  52
+query for  listing:l8  with hash  52
+QUERY -  l8  about to send:  {"id": "l8", "title": "NYC Studio", "host_id": "u8", "host_name": "Hannah", "location": "New York", "latitude": 40.7, "longitude": -73.9, "room_type": "Studio", "price": 90, "minimum_nights": 1, "number_of_reviews": 12, "last_review": "2023-03-05", "reviews_per_month": 0.4, "calculated_host_listings_count": 1, "availability_365": 190, "zipcode": 10001}
+Adding listing with args:  ['{"id":"l9","title":"SF Downtown Cabin","host_id":"u9","host_name":"Ian","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Cabin","price":110,"minimum_nights":2,"number_of_reviews":15,"last_review":"2023-01-15","reviews_per_month":0.5,"calculated_host_listings_count":2,"availability_365":170,"zipcode":94121}']
+insertion for  l9  with hash  49
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+predecessor ID:  29
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  100
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  100
+Entry:  5  Interval start:  98  Successor:  100
+Entry:  6  Interval start:  2  Successor:  29
+===============================================
+DATA STORE
+===============================================
+{'zipcode:94121': '["l3", "l6", "l9"]', 'city:san francisco': '["l3", "l6", "l9"]', 'listing:l7': '{"id": "l7", "title": "Seattle Loft", "host_id": "u7", "host_name": "George", "location": "Seattle", "latitude": 47.6, "longitude": -122.3, "room_type": "Loft", "price": 140, "minimum_nights": 3, "number_of_reviews": 22, "last_review": "2023-02-28", "reviews_per_month": 0.9, "calculated_host_listings_count": 3, "availability_365": 210, "zipcode": 98101}', 'listing:l8': '{"id": "l8", "title": "NYC Studio", "host_id": "u8", "host_name": "Hannah", "location": "New York", "latitude": 40.7, "longitude": -73.9, "room_type": "Studio", "price": 90, "minimum_nights": 1, "number_of_reviews": 12, "last_review": "2023-03-05", "reviews_per_month": 0.4, "calculated_host_listings_count": 1, "availability_365": 190, "zipcode": 10001}', 'listing:l9': '{"id": "l9", "title": "SF Downtown Cabin", "host_id": "u9", "host_name": "Ian", "location": "San Francisco", "latitude": 37.7, "longitude": -122.4, "room_type": "Cabin", "price": 110, "minimum_nights": 2, "number_of_reviews": 15, "last_review": "2023-01-15", "reviews_per_month": 0.5, "calculated_host_listings_count": 2, "availability_365": 170, "zipcode": 94121}'}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
+Adding listing with args:  ['{"id":"l10","title":"SF Cozy Cottage","host_id":"u10","host_name":"Jack","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Cottage","price":95,"minimum_nights":1,"number_of_reviews":7,"last_review":"2023-04-01","reviews_per_month":0.2,"calculated_host_listings_count":1,"availability_365":150,"zipcode":94121}']
+insertion for  l10  with hash  43
+===============================================
+STABILIZING
+===============================================
+ID:  66
+Successor ID:  100
+predecessor ID:  29
+===============================================
+=============== FINGER TABLE ==================
+Entry:  0  Interval start:  67  Successor:  100
+Entry:  1  Interval start:  68  Successor:  None
+Entry:  2  Interval start:  70  Successor:  100
+Entry:  3  Interval start:  74  Successor:  None
+Entry:  4  Interval start:  82  Successor:  100
+Entry:  5  Interval start:  98  Successor:  100
+Entry:  6  Interval start:  2  Successor:  29
+===============================================
+DATA STORE
+===============================================
+{'zipcode:94121': '["l3", "l6", "l9", "l10"]', 'city:san francisco': '["l3", "l6", "l9", "l10"]', 'listing:l7': '{"id": "l7", "title": "Seattle Loft", "host_id": "u7", "host_name": "George", "location": "Seattle", "latitude": 47.6, "longitude": -122.3, "room_type": "Loft", "price": 140, "minimum_nights": 3, "number_of_reviews": 22, "last_review": "2023-02-28", "reviews_per_month": 0.9, "calculated_host_listings_count": 3, "availability_365": 210, "zipcode": 98101}', 'listing:l8': '{"id": "l8", "title": "NYC Studio", "host_id": "u8", "host_name": "Hannah", "location": "New York", "latitude": 40.7, "longitude": -73.9, "room_type": "Studio", "price": 90, "minimum_nights": 1, "number_of_reviews": 12, "last_review": "2023-03-05", "reviews_per_month": 0.4, "calculated_host_listings_count": 1, "availability_365": 190, "zipcode": 10001}', 'listing:l9': '{"id": "l9", "title": "SF Downtown Cabin", "host_id": "u9", "host_name": "Ian", "location": "San Francisco", "latitude": 37.7, "longitude": -122.4, "room_type": "Cabin", "price": 110, "minimum_nights": 2, "number_of_reviews": 15, "last_review": "2023-01-15", "reviews_per_month": 0.5, "calculated_host_listings_count": 2, "availability_365": 170, "zipcode": 94121}', 'listing:l10': '{"id": "l10", "title": "SF Cozy Cottage", "host_id": "u10", "host_name": "Jack", "location": "San Francisco", "latitude": 37.7, "longitude": -122.4, "room_type": "Cottage", "price": 95, "minimum_nights": 1, "number_of_reviews": 7, "last_review": "2023-04-01", "reviews_per_month": 0.2, "calculated_host_listings_count": 1, "availability_365": 150, "zipcode": 94121}'}
+===============================================
++++++++++++++++ END +++++++++++++++++++++++++++
+
+
+
