@@ -104,6 +104,17 @@ def book_listing():
         return {"result": result}, 200
     except Exception as e:
         return {"error": str(e)}, 500
+    
+@flask_app.route('/api/check-booked', methods=['GET'])
+@cross_origin()
+def check_booked():
+    listing_id = request.args.get("listing_id")
+    if not listing_id:
+        return {"error": "listing_id is required"}, 400
+
+    message = f"check_booked|{listing_id}"
+    result = node.process_requests(message)
+    return result, 200
 
 @flask_app.route('/api/write-review', methods=['POST'])
 @cross_origin()
@@ -516,6 +527,15 @@ class Node:
 
             lj = json.loads(raw)
             return lj
+        
+        elif operation == "check_booked":
+            listing_id = args[0]
+            bookings = {key: value for key, value in self.data_store.data.items() if key.startswith("booking:")}
+            for booking_id, booking_data in bookings.items():
+                if json.loads(booking_data).get("listing_id") == listing_id:
+                    return "booked"
+            return "available"
+
 
         elif operation == "book_listing":
             booking_json = json.loads(args[0])

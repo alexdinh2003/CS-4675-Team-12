@@ -218,10 +218,13 @@ export const getListingsByLocation = async (addressInfo: { location: string; zip
                     }
                   }
                   result.images = result_images;
-                  console.log("Updated listing with images:", result);
               } else {
                 console.log("Error fetching listings:", result.error);
               }
+
+              const booked = await checkBooking(result.id);
+              result.booked = booked;
+              console.log("Booking status:", booked);
             } catch (error) {
               console.error("Error:", error);
             }
@@ -335,3 +338,34 @@ export const bookListing = async (id: string, renter_password: string, listing_i
     return null;
   }
 };
+
+export const checkBooking = async (listing_id: string) => {
+  if (!url) {
+    const peerUrl = await getPeerUrl();
+    url = peerUrl;
+  }
+
+  const apiUrl = `${url}/api/check-booked?listing_id=${listing_id}`;
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await res.text();
+    try {
+      const parsedResult = JSON.parse(result);
+      console.log("Check booking successful:", parsedResult);
+      return parsedResult;
+    } catch (error) {
+      console.error("Error parsing response:", error);
+      return result; // Return raw string if parsing fails
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    return null;
+  }
+}

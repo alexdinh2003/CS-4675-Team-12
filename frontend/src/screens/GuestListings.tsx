@@ -75,21 +75,25 @@ const GuestListings: React.FC = () => {
               </button>
 
               {/* Book Listing Button */}
-              <button
-                onClick={async () => {
-                  console.log("Booking listing with user data: ")
-                  console.log(user)
-                  if(await bookListing(user.host_id, user.password_hash, selectedListing.id)) {
-                    const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
-                    navigate("/guest/", { state: { user: result } });
-                  } else {
-                    alert("Booking failed. Please try again.");
-                  }
-                }}
-                className="text-white px-4 py-2 rounded-md hover:bg-blue-600 !bg-blue-500"
-              >
-                Book Listing
-              </button>
+              {selectedListing.booked === "available" ? (
+                <button
+                  onClick={async () => {
+                    console.log("Booking listing with user data: ");
+                    console.log(user);
+                    if (await bookListing(user.host_id, user.password_hash, selectedListing.id)) {
+                      const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
+                      navigate("/guest/", { state: { user: result } });
+                    } else {
+                      alert("Booking failed. Please try again.");
+                    }
+                  }}
+                  className="text-white px-4 py-2 rounded-md hover:bg-blue-600 !bg-blue-500"
+                >
+                  Book Listing
+                </button>
+              ) : (
+                <p className="text-gray-500 px-4 py-2 rounded-md bg-gray-200">Reserved</p>
+              )}
             </div>
             </div>
 
