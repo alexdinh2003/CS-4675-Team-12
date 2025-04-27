@@ -25,7 +25,7 @@ send() {
     sleep 0.2
 }
 
-# ========== DEFINE 10 LISTINGS ==========
+
 # Modify the listings so that multiple listings share the same city and zipcode.
 # For example:
 # - Listings l1, l4, l7 use "Seattle"/98101
@@ -78,7 +78,7 @@ for i in "${!listings[@]}"; do
     echo "Resp: $response"
 done
 
-# ========== QUERY BY CITY: For each individual city ==========
+
 echo
 echo "=== Individual city queries ==="
 # We assume the following cities based on our listings.
@@ -91,7 +91,7 @@ for city in "${cities[@]}"; do
     echo "Response: $response"
 done
 
-# ========== QUERY BY ZIPCODE: For each individual zipcode ==========
+
 echo
 echo "=== Individual zipcode queries ==="
 # Based on our listings:
@@ -106,10 +106,6 @@ done
 
 
 
-
-
-
-# ========== TEARDOWN ==========
 echo
 echo "=== Tearing down nodes ==="
 pkill -f Node_DHT.py || true

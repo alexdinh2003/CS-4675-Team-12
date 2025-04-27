@@ -17,11 +17,9 @@ sleep 1
 nohup python3 -u Node_DHT.py $port3 $port1       > "$log_dir/node3.log" 2>&1 &
 sleep 1
 
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 5
 
-# Helper
 send() {
     echo -e "$1\n" | nc localhost "$2"
     sleep 0.2
@@ -29,7 +27,6 @@ send() {
 
 ports=($port1 $port2 $port3)
 
-# ========== REGISTER USERS ==========
 echo
 echo "=== Registering Users ==="
 users=(
@@ -51,11 +48,9 @@ for i in "${!users[@]}"; do
     send "register_user|$user" "$port"
 done
 
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 5
 
-# ========== ADD LISTINGS ==========
 echo
 echo "=== Adding Listings ==="
 listings=(
@@ -78,11 +73,9 @@ for i in "${!listings[@]}"; do
     send "add_listing|$listing" "$port"
 done
 
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 5
 
-# ========== BOOKINGS ==========
 echo
 echo "=== Creating Bookings ==="
 bookings=(
@@ -97,20 +90,17 @@ for i in "${!bookings[@]}"; do
     send "book_listing|$booking" "$port"
 done
 
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 5
-# ========== VERIFY USER INFO ==========
 echo
 echo "=== Verifying Users' Currently Renting Lists ==="
 for id_pw in "u2|pw_u2" "u3|pw_u3" "u4|pw_u4" "u10|pw_u10"; do
     echo "→ ${id_pw#*|}:"
     send "get_user_info|$id_pw" "$port1"
 done
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 10
-# ========== QUERY BY CITY ==========
+
 echo
 echo "=== Individual City Queries ==="
 cities=("Seattle" "New York" "San Francisco")
@@ -119,11 +109,10 @@ for city in "${cities[@]}"; do
     echo "Query for city: $city"
     send "get_listings_by_city|$city" $port2
 done
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 10
 
-# ========== QUERY BY ZIPCODE ==========
+
 echo
 echo "=== Individual Zipcode Queries ==="
 zips=(98101 10001 94121)
@@ -132,11 +121,10 @@ for zip in "${zips[@]}"; do
     echo "Query for zipcode: $zip"
     send "get_listings_by_zip|$zip" $port1
 done
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 5
 
-# ========== QUERY BY ZIPCODE ==========
+
 echo
 echo "=== Individual Zipcode Queries ==="
 zips=(98101 10001 94121)
@@ -145,11 +133,10 @@ for zip in "${zips[@]}"; do
     echo "Query for zipcode: $zip"
     send "get_listings_by_zip|$zip" $port1
 done
-# 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
 sleep 5
 
-# ========== TEARDOWN ==========
+
 # echo
 # echo "=== Tearing Down Nodes ==="
 # pkill -f Node_DHT.py || true

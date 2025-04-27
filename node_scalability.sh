@@ -51,13 +51,12 @@ done
 sleep 10 
 echo "Nodes stabilized."
 
-# ========== GENERATE USERS ==========
+
 users=()
 for i in $(seq 1 $NUM_USERS); do
     users+=("{\"host_id\":\"u$i\",\"host_password\":\"pw_u$i\",\"host_name\":\"User$i\"}")
 done
 
-# ========== REGISTER USERS ==========
 echo
 echo "=== Registering Users ==="
 user_start=$(date +%s.%N)
@@ -75,14 +74,14 @@ user_end=$(date +%s.%N)
 echo "Waiting after user registration..."
 sleep 15
 
-# ========== GENERATE LISTINGS ==========
+
 listings=()
 for i in $(seq 1 $NUM_LISTINGS); do
     user_id="u$(( (i % NUM_USERS) + 1 ))"
     listings+=("{\"id\":\"l$i\",\"title\":\"Listing$i\",\"host_id\":\"$user_id\",\"host_name\":\"User${user_id#u}\",\"host_password\":\"pw_${user_id#u}\",\"location\":\"City$((i%3))\",\"latitude\":40.0,\"longitude\":-70.0,\"room_type\":\"Room\",\"price\":$((50 + i)),\"minimum_nights\":1,\"number_of_reviews\":0,\"last_review\":\"2025-01-01\",\"reviews_per_month\":0.1,\"calculated_host_listings_count\":1,\"availability_365\":300,\"zipcode\":$((10000 + i % 3))}")
 done
 
-# ========== ADD LISTINGS ==========
+
 echo
 echo "=== Adding Listings ==="
 listing_start=$(date +%s.%N)
@@ -100,7 +99,7 @@ listing_end=$(date +%s.%N)
 echo "Waiting after listing addition..."
 sleep 15
 
-# ========== INDEXING CITIES ==========
+
 echo
 echo "=== Indexing Cities ==="
 cities=("City0" "City1" "City2")
@@ -113,7 +112,7 @@ index_end=$(date +%s.%N)
 
 sleep 10
 
-# ========== BOOKINGS ==========
+
 echo
 echo "=== Booking Listings ==="
 booking_start=$(date +%s.%N)
@@ -128,7 +127,7 @@ booking_end=$(date +%s.%N)
 
 sleep 10
 
-# ========== STORAGE INFO ==========
+
 echo
 echo "=== Node Storage Info ==="
 for port in "${ports[@]}"; do
@@ -139,7 +138,7 @@ done
 
 sleep 10
 
-# ========== CALCULATE TIMINGS ==========
+
 total_user_time=$(echo "$user_end - $user_start" | bc)
 avg_user_time=$(echo "$total_user_time / $NUM_USERS" | bc -l)
 
@@ -152,7 +151,7 @@ avg_index_time=$(echo "$total_index_time / ${#cities[@]}" | bc -l)
 total_booking_time=$(echo "$booking_end - $booking_start" | bc)
 avg_booking_time=$(echo "$total_booking_time / $NUM_BOOKINGS" | bc -l)
 
-# ========== OUTPUT RESULTS ==========
+
 echo
 echo "=== Benchmark Results ==="
 printf "Total user registration time: %.1f s\n" "$total_user_time"
@@ -164,7 +163,7 @@ printf "Avg indexing time:            %.20f s\n" "$avg_index_time"
 printf "Total booking time (%d):      %.1f s\n" "$NUM_BOOKINGS" "$total_booking_time"
 printf "Avg booking time:             %.20f s\n" "$avg_booking_time"
 
-# ========== TEARDOWN ==========
+
 echo
 echo "=== Tearing Down Nodes ==="
 pkill -f Node_DHT.py || true
