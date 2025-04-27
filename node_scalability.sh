@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-trap "echo 'Stopping DHT nodes...'; pkill -f Node_DHT.py || true; exit" INT TERM
 
 NUM_USERS=50
 NUM_LISTINGS=50
@@ -25,11 +24,11 @@ wait_for_port() {
         sleep "$wait_seconds"
         ((count++))
         if [ "$count" -ge "$retries" ]; then
-            echo "❌ ERROR: Port $port did not open after $((retries * wait_seconds)) seconds."
+            echo "ERROR: Port $port did not open after $((retries * wait_seconds)) seconds."
             exit 1
         fi
     done
-    echo "✅ Port $port is open!"
+    echo "Port $port is open!"
 }
 
 echo "=== Starting DHT Nodes ==="
@@ -108,7 +107,7 @@ cities=("City0" "City1" "City2")
 index_start=$(date +%s.%N)
 for city in "${cities[@]}"; do
     send "get_listings_by_city|$city" "${ports[0]}"
-    sleep 1  # ⬅️ small sleep between queries
+    sleep 1 
 done
 index_end=$(date +%s.%N)
 
@@ -170,4 +169,3 @@ echo
 echo "=== Tearing Down Nodes ==="
 pkill -f Node_DHT.py || true
 sleep 1
-echo "✅ Benchmark complete. Logs saved to $log_dir/"
