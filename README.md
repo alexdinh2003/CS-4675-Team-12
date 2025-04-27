@@ -1,12 +1,23 @@
-# CS-4675-Team-12
-CS 4675
+# CS-4675 Team 12
+**Course:** CS 4675  
+**Project:** P2P AirBnB
 
+---
 
-Airbnb (Focus on building the core components plus make them P2P)
+## How to Run
 
-Core components:
-House listings
-Buyers
-Sellers
+### Terminal 1:
+```bash
+python frontend_node_backend.py
+'''
 
-DHT, look up protocol
+### Terminal 2:
+```bash
+./run_airbnb_test3.sh
+'''
+
+### Terminal 3:
+```bash
+cd frontend
+npm run dev
+'''
