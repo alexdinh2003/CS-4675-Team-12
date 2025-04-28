@@ -10,6 +10,7 @@ import os
 #from handleData import *
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
+from concurrent.futures import ThreadPoolExecutor
 from flask import send_from_directory
 
 
@@ -213,10 +214,18 @@ class NodeInfo:
         self.port = port
     def __str__(self):
         return self.ip + "|" + str(self.port)
+
+
+connPool = {
+
+}
+threadPool = ThreadPoolExecutor(max_workers=32)
+
+
 # The class Node is used to manage the each node that, it contains all the information about the node like ip, port,
 # the node's successor, finger table, predecessor etc.
 class Node:
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, shouldListen=False):
         self.ip = ip
         self.port = int(port)
         self.nodeinfo = NodeInfo(ip, port)
@@ -226,13 +235,8 @@ class Node:
         self.finger_table = FingerTable(self.id)
         self.data_store = DataStore()
         self.data_folder = DATA_FOLDER
-        threading.Thread(target=self.run_periodic_tasks, daemon=True).start()
-    
-    def run_periodic_tasks(self):
-        while True:
-            self.stabilize()
-            self.fix_fingers()
-            time.sleep(1)
+        # if shouldListen:
+        #     threading.Thread(target=self.run_periodic_tasks, daemon=True).start()
 
     def hash(self, message: str) -> int:
         '''
@@ -427,6 +431,7 @@ class Node:
             ip, port = self.get_ip_port(succ)
             renter_id = booking_json.get("id", "")
             renter_password = booking_json.get("renter_password", "")
+            print("Looking for user: ", renter_id, renter_password)
             user_key = f"user:{renter_id}:{renter_password}"
             user_exists = False
             user_data = {}
@@ -639,7 +644,7 @@ class Node:
 
     def serve_requests(self, conn, addr):
         '''
-        The serve_requests fucntion is used to listen to incomint requests on the open port and then reply to them it
+        The serve_requests fucntion is used to listen to incoming requests on the open port and then reply to them it
         takes as arguments the connection and the address of the connected device.
         '''
         with conn:
@@ -664,12 +669,16 @@ class Node:
                 return
 
             # otherwise, delegate to your existing process_requests()
+            print("processing request: ", msg)
             response = self.process_requests(msg)
             # if you returned bytes, send raw, else utf‑8 encode
             if isinstance(response, bytes):
+                print("Sending response")
                 conn.sendall(response)
             else:
                 conn.sendall(response.encode('utf-8'))
+            print("Closed connection: ", conn)
+            conn.close()
 
 
     def _handle_upload_image(self, conn, listing_hash, filename, file_size):
@@ -718,8 +727,11 @@ class Node:
             s.listen()
             while True:
                 conn, addr = s.accept()
-                t = threading.Thread(target=self.serve_requests, args=(conn,addr))
-                t.start()
+                print("Accepted connection: ", conn)
+                # uses threadpool to limit connections
+                threadPool.submit(self.serve_requests, conn, addr)
+                #t = threading.Thread(target=self.serve_requests, args=(conn,addr))
+                #t.start()
 
     def insert_key(self,key,value):
         '''
@@ -732,7 +744,7 @@ class Node:
         # print("Succ found for inserting key" , id_of_key , succ)
         ip,port = self.get_ip_port(succ)
         send_message(ip,port,"insert_server|" + str(key) + ":" + str(value) )
-        return "Inserted at node id " + str(Node(ip,port).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
+        return "Inserted at node id " + str(Node(ip,port, False).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
 
     def delete_key(self,key):
         '''
@@ -745,7 +757,7 @@ class Node:
         # print("Succ found for deleting key" , id_of_key , succ)
         ip,port = self.get_ip_port(succ)
         send_message(ip,port,"delete_server|" + str(key) )
-        return "deleted at node id " + str(Node(ip,port).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
+        return "deleted at node id " + str(Node(ip,port, False).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
 
 
     def search_key(self,key):
@@ -764,6 +776,7 @@ class Node:
 
     def join_request_from_other_node(self, node_id):
         """ will return successor for the node who is requesting to join """
+        print("Receving join request from: ", node_id)
         return self.find_successor(node_id)
 
     def join(self,node_ip, node_port):
@@ -773,9 +786,10 @@ class Node:
         smaller than its id from its successor.
         '''
         data = 'join_request|' + str(self.id)
+        print("JOINING NODE: ", node_ip, ":", node_port)
         succ = send_message(node_ip,node_port,data)
         ip,port = self.get_ip_port(succ)
-        self.successor = Node(ip,port)
+        self.successor = Node(ip,port, False)
         self.finger_table.table[0][1] = self.successor
         self.predecessor = None
 
@@ -787,31 +801,43 @@ class Node:
                     # print(key_value.split('|'))
                     self.data_store.data[key_value.split('|')[0]] = key_value.split('|')[1]
 
-    def find_predecessor(self, search_id: str) -> str:
-        '''
-        The find_predecessor function provides the predecessor of any value in the ring given its id.
-        '''
-        if search_id == self.id:
+    def find_predecessor(self, search_id):
+        if self.id == search_id:
             return str(self.nodeinfo)
-        # print("finding pred for id ", search_id)
 
-
-        assert self.successor is not None and isinstance(self.successor, Node), f"Successor does not exist for node {self}"
-
-
-
-        if self.get_forward_distance(self.successor.id) > self.get_forward_distance(search_id): # Base Case: Are we the predecessor ?
-            return self.nodeinfo.__str__()
-        else:
-            new_node_hop = self.closest_preceding_node(search_id)
-            # print("new node hop finding hops in find predecessor" , new_node_hop.nodeinfo.__str__() )
-            if new_node_hop is None:
-                return "None"
-            ip, port = self.get_ip_port(new_node_hop.nodeinfo.__str__())
+        while not self.in_range(search_id, self.id, self.successor.id, inclusive_start=False, inclusive_end=True):
+            next_hop = self.closest_preceding_node(search_id)
+            if next_hop is None:
+                break
+            ip, port = self.get_ip_port(str(next_hop.nodeinfo))
             if ip == self.ip and port == self.port:
-                return self.nodeinfo.__str__()
-            data = send_message(ip , port, "find_predecessor|"+str(search_id))
-            return data
+                break
+            return send_message(ip, port, f"find_predecessor|{search_id}")
+        
+        return str(self.nodeinfo)
+
+    def in_range(self, id, start, end, inclusive_start, inclusive_end):
+        """ Checks if id ∈ (start, end) (mod 2^m) """
+        if start == end:
+            return True  # entire ring
+
+        if start < end:
+            if inclusive_start and inclusive_end:
+                return start <= id <= end
+            if inclusive_start and not inclusive_end:
+                return start <= id < end
+            if not inclusive_start and inclusive_end:
+                return start < id <= end
+            return start < id < end
+        else:
+            # Ring wraps around
+            if inclusive_start and inclusive_end:
+                return id >= start or id <= end
+            if inclusive_start and not inclusive_end:
+                return id >= start or id < end
+            if not inclusive_start and inclusive_end:
+                return id > start or id <= end
+            return id > start or id < end
 
     def find_successor(self, search_id):
         '''
@@ -867,43 +893,32 @@ class Node:
         '''
         while True:
             if self.successor is None:
-                time.sleep(5)
+                time.sleep(1)
                 continue
             data = "get_predecessor"
+            print("stabalizing...")
+
 
             if self.successor.ip == self.ip  and self.successor.port == self.port:
-                time.sleep(5)
+                time.sleep(1)
             result = send_message(self.successor.ip , self.successor.port , data)
             if result == "None" or len(result) == 0:
                 send_message(self.successor.ip , self.successor.port, "notify|"+ str(self.id) + "|" + self.nodeinfo.__str__())
                 continue
 
             # print("found predecessor of my sucessor", result, self.successor.id)
+
             ip , port = self.get_ip_port(result)
+            if ip == self.ip and port == self.port:
+                time.sleep(1)
+                continue
             result = int(send_message(ip,port,"get_id"))
             if self.get_backward_distance(result) > self.get_backward_distance(self.successor.id):
                 # print("changing my succ in stablaize", result)
-                self.successor = Node(ip,port)
+                self.successor = Node(ip,port, False)
                 self.finger_table.table[0][1] = self.successor
             send_message(self.successor.ip , self.successor.port, "notify|"+ str(self.id) + "|" + self.nodeinfo.__str__())
-            print("===============================================")
-            print("STABILIZING")
-            print("===============================================")
-            print("ID: ", self.id)
-            if self.successor is not None:
-                print("Successor ID: " , self.successor.id)
-            if self.predecessor is not None:
-                print("predecessor ID: " , self.predecessor.id)
-            print("===============================================")
-            print("=============== FINGER TABLE ==================")
-            self.finger_table.print()
-            print("===============================================")
-            print("DATA STORE")
-            print("===============================================")
-            print(str(self.data_store.data))
-            print("===============================================")
-            print("+++++++++++++++ END +++++++++++++++++++++++++++\n\n\n")
-            time.sleep(10)
+            time.sleep(1)
 
     def notify(self, node_id , node_ip , node_port):
         '''
@@ -931,17 +946,16 @@ class Node:
         ring it can properly mark that node in its finger table.
         '''
         while True:
-
             random_index = random.randint(1,m-1)
             finger = self.finger_table.table[random_index][0]
             # print("in fix fingers , fixing index", random_index)
             data = self.find_successor(finger)
             if data == "None":
-                time.sleep(10)
+                time.sleep(5)
                 continue
             ip,port = self.get_ip_port(data)
-            self.finger_table.table[random_index][1] = Node(ip,port)
-            time.sleep(10)
+            self.finger_table.table[random_index][1] = Node(ip,port, shouldListen=False)
+            time.sleep(5)
     def get_successor(self):
         '''
         This function is used to return the successor of the node
@@ -1024,13 +1038,17 @@ class FingerTable:
                 print('Entry: ', index, " Interval start: ", entry[0]," Successor: ", entry[1].id)
 
 
-def send_message(ip, port, message, retries=3, delay=0.5):
+def send_message(ip, port, message, retries=3, delay=1):
     for attempt in range(retries):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
+                print("making connection to ", s, " with message: ", message)
                 s.sendall(message.encode())
-                return s.recv(4096).decode()
+                res = s.recv(4096).decode()
+                print("closing connection to addr: ", s)
+                s.close()
+                return res
         except ConnectionRefusedError as e:
             if attempt < retries - 1:
                 time.sleep(delay)
@@ -1051,7 +1069,7 @@ flask_thread.start()
 
 if len(sys.argv) == 3:
     print("JOINING RING")
-    node = Node(ip, int(sys.argv[1]))
+    node = Node(ip, int(sys.argv[1]), True)
 
     node.join(ip,int(sys.argv[2]))
     node.start()
@@ -1059,7 +1077,7 @@ if len(sys.argv) == 3:
 if len(sys.argv) == 2:
     assert(len(sys.argv) >= 1)
     print(f"CREATING RING in {ip}:{sys.argv[1]}")
-    node = Node(ip, int(sys.argv[1]))
+    node = Node(ip, int(sys.argv[1]), True)
 
     node.predecessor = Node(ip,node.port)
     node.successor = Node(ip,node.port)

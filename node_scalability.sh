@@ -65,7 +65,7 @@ for i in "${!users[@]}"; do
     port="${ports[$(( i % ${#ports[@]} ))]}"
     send "register_user|$user" "$port"
 
-    if (( i % 10 == 0 && i != 0 )); then
+    if (( i % 20 == 0 && i != 0 )); then
         sleep 5 
     fi
 done
@@ -119,7 +119,7 @@ booking_start=$(date +%s.%N)
 for i in $(seq 1 $NUM_BOOKINGS); do
     user_id="u$(( (i % NUM_USERS) + 1 ))"
     listing_id="l$(( (i % NUM_LISTINGS) + 1 ))"
-    booking_data="{\"host_id\":\"$user_id\",\"host_password\":\"pw_${user_id#u}\",\"listing_id\":\"$listing_id\"}"
+    booking_data="{\"id\":\"$user_id\",\"renter_password\":\"pw_${user_id#u}\",\"listing_id\":\"$listing_id\"}"
     send "book_listing|$booking_data" "${ports[1]}"
     sleep 0.5 
 done
