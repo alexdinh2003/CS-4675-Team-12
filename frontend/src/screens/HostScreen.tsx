@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { requestMyListings } from "../utils/handleListings";
+import { useLocation, useNavigate } from "react-router-dom";
+import { requestMyListings } from "../utils/handle-apis";
 
 const HostScreen: React.FC = () => {
   const navigate = useNavigate();
-
+  const location = useLocation();
+  const user = location.state?.user;
   const [listings, setListings] = useState<any[]>([]);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchListings = async () => {
+      console.log("Fetching listings for user:", user);
       try {
-        const response = await requestMyListings();
+        const response = await requestMyListings(user, "host");
         setListings(response);
       } catch (error) {
         console.error("Failed to fetch listings:", error);
@@ -62,6 +64,12 @@ const HostScreen: React.FC = () => {
             <p className="text-gray-500">No listings available.</p>
           )}
         </div>
+        <button
+          onClick={() => navigate("/host/create-listing", { state: { user: user } })}
+          className="mt-4 !bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-green-600 w-full"
+        >
+          Create a Listing
+        </button>
       </div>
 
       {/* Modal */}
@@ -90,9 +98,7 @@ const HostScreen: React.FC = () => {
               <div className="relative w-full h-64 overflow-hidden rounded-md">
                 {selectedListing.images && selectedListing.images.length > 0 ? (
                   <img
-                    src={URL.createObjectURL(
-                      selectedListing.images[selectedListing.currentImageIndex || 0]
-                    )}
+                    src={selectedListing.images[selectedListing.currentImageIndex || 0]} // Use the valid URL
                     alt={`Listing Image ${(selectedListing.currentImageIndex || 0) + 1}`}
                     className="object-cover w-full h-full rounded-md"
                   />

@@ -10,6 +10,7 @@ import os
 #from handleData import *
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
+from concurrent.futures import ThreadPoolExecutor
 from flask import send_from_directory
 
 
@@ -23,12 +24,12 @@ os.makedirs(DATA_FOLDER, exist_ok=True)
 @flask_app.route('/api/upload-image', methods=['POST'])
 @cross_origin()
 def upload_image():
-    listing_hash = request.form.get("listing_hash")
+    id = request.form.get("id")
     file = request.files.get("file")
-    if not listing_hash or not file:
-        return {"error":"listing_hash and file required"},400
+    if not id or not file:
+        return {"error":"id and file required"},400
 
-    node.upload_image_http(listing_hash, file)
+    node.upload_image_http(str(id), file)
     return {"result":"Image uploaded"},200
 
 @flask_app.route('/api/get-listing-by-hash', methods=['GET'])
@@ -79,20 +80,45 @@ def get_listings():
 
     # raw is JSON list of listing IDs; if you want _hashes_ instead:
     ids = json.loads(raw)
-    hashes = [ str(node.hash(f"listing:{i}")) for i in ids ]
-    return {"hashes": hashes},200
+    return ids, 200
 
 @flask_app.route('/api/book-listing', methods=['POST'])
+@cross_origin()
 def book_listing():
     data = request.get_json()
-    if not data:
+    if not data or 'id' not in data or 'listing_id' not in data or 'renter_password' not in data:
         return {"error": "Invalid JSON data"}, 400
 
-    message = f"book_listing|{json.dumps(data)}"
+    booking_id = data['id']
+    listing_id = data['listing_id']
+    renter_password = data['renter_password']
+
+    booking_json = {
+        "id": booking_id,
+        "listing_id": listing_id,
+        "renter_password": renter_password
+    }
+
+    message = f"book_listing|{json.dumps(booking_json)}"
+    try:
+        result = node.process_requests(message)
+        return {"result": result}, 200
+    except Exception as e:
+        return {"error": str(e)}, 500
+    
+@flask_app.route('/api/check-booked', methods=['GET'])
+@cross_origin()
+def check_booked():
+    listing_id = request.args.get("listing_id")
+    if not listing_id:
+        return {"error": "listing_id is required"}, 400
+
+    message = f"check_booked|{listing_id}"
     result = node.process_requests(message)
-    return {"result": result}, 200
+    return result, 200
 
 @flask_app.route('/api/write-review', methods=['POST'])
+@cross_origin()
 def write_review():
     data = request.get_json()
     if not data or 'listing_id' not in data or 'review' not in data:
@@ -105,6 +131,7 @@ def write_review():
     return {"result": result}, 200
 
 @flask_app.route('/api/get-reviews', methods=['GET'])
+@cross_origin()
 def get_reviews():
     listing_id = request.args.get("listing_id")
     if not listing_id:
@@ -114,6 +141,43 @@ def get_reviews():
     result = node.process_requests(message)
     return {"result": result}, 200
 
+@flask_app.route('/api/register-user', methods=['POST'])
+@cross_origin()
+def register_user():
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON"}, 400
+
+    raw = node.process_requests(f"register_user|{json.dumps(data)}")
+    try:
+        return json.loads(raw), 200
+    except:
+        return {"error": raw}, 404
+
+@flask_app.route('/api/get-user-info', methods=['GET'])
+@cross_origin()
+def get_user_info():
+    id = request.args.get("id")
+    password_hash = request.args.get("password_hash")
+    if not password_hash:
+        return {"error": "password_hash is required"}, 400
+
+    raw = node.process_requests(f"get_user_info|{id}|{password_hash}")
+    try:
+        return json.loads(raw), 200
+    except:
+        return {"error": raw}, 404
+    
+@flask_app.route('/api/get-listing-by-id', methods=['GET'])
+@cross_origin()
+def get_listings_by_id():
+    id = request.args.get("id")
+
+    if not id:
+        return {"error": "id is required"}, 400
+
+    raw = node.process_requests(f"get_listing_by_id|{id}")
+    return raw, 200
 
 # # MUST BE DONE VIA FEATURE_FLAG
 # @flask_app.route('/get-url', methods=['GET'])
@@ -129,11 +193,16 @@ m = 7
 
 class DataStore:
     def __init__(self):
+        self.amount = 0
         self.data = {}
     def insert(self, key, value):
         self.data[key] = value
+        self.amount += len(str(key)) + len(str(value))
     def delete(self, key):
+        if key in self.data:
+            self.amount -= len(key) - len(self.data[key])
         del self.data[key]
+
     def search(self, search_key):
         # print('Search key', search_key)
 
@@ -150,10 +219,18 @@ class NodeInfo:
         self.port = port
     def __str__(self):
         return self.ip + "|" + str(self.port)
+
+
+connPool = {
+
+}
+threadPool = ThreadPoolExecutor(max_workers=64)
+
+
 # The class Node is used to manage the each node that, it contains all the information about the node like ip, port,
 # the node's successor, finger table, predecessor etc.
 class Node:
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, shouldListen=False):
         self.ip = ip
         self.port = int(port)
         self.nodeinfo = NodeInfo(ip, port)
@@ -163,6 +240,8 @@ class Node:
         self.finger_table = FingerTable(self.id)
         self.data_store = DataStore()
         self.data_folder = DATA_FOLDER
+        # if shouldListen:
+        #     threading.Thread(target=self.run_periodic_tasks, daemon=True).start()
 
     def hash(self, message: str) -> int:
         '''
@@ -172,21 +251,32 @@ class Node:
         digest = int(digest, 16) % pow(2,m)
         return digest
 
-    def upload_image_http(self, listing_hash: str, file_storage):
+    def upload_image_http(self, id: str, file_storage):
+        # Save the image to the data folder
         path = os.path.join(self.data_folder, file_storage.filename)
         file_storage.save(path)
 
-        # attach filename to the JSON stored under hash:<listing_hash>
-        key = f"hash:{listing_hash}"
+        # Attach the filename to the JSON stored under hash:<listing_hash>
+        key = f"listing:{id}"  # Use the computed hash
+        print(f"Key for listing metadata: {key}")
         raw = self.data_store.data.get(key)
         if raw:
             lj = json.loads(raw)
+            print(f"Existing listing metadata: {lj}")
+
             imgs = lj.setdefault("images", [])
             if file_storage.filename not in imgs:
                 imgs.append(file_storage.filename)
-                # write back both hash: and listing:id entries
+                print(f"Updated images list: {imgs}")
+
+                # Write back both hash:<listing_hash> and listing:<listing_id> entries
                 self.data_store.data[key] = json.dumps(lj)
                 self.data_store.data[f"listing:{lj['id']}"] = json.dumps(lj)
+                print(f"Updated data_store for key: {key}")
+            else:
+                print(f"Image {file_storage.filename} already exists in images list.")
+        else:
+            print(f"No metadata found for key: {key}")
         return True
 
     def get_image_path(self, filename: str) -> str | None:
@@ -204,18 +294,40 @@ class Node:
 
             listing_json = json.loads(args[0])
             listing_id = listing_json["id"]
+            host_id = listing_json["host_id"]
+            password_hash = listing_json.get("host_password", "")
             key = f"listing:{listing_id}"
 
             key_hash = self.hash(key)
-            print("insertion for ", listing_id, " with hash ", key_hash)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
+            print("For key: ", key, " and hash ", key_hash, " successor in ", port)
 
             if ip == self.ip and port == self.port:
                 self.data_store.insert(key, json.dumps(listing_json))
+                print("Listing added: ")
+                print(self.data_store.data)
+
+                # Update user listings using password hash
+                if password_hash:
+                    user_key = f"user:{host_id}:{password_hash}"
+                    user_hash = self.hash(user_key)
+                    user_succ = self.find_successor(user_hash)
+                    ip_user, port_user = self.get_ip_port(user_succ)
+
+                    if ip_user == self.ip and port_user == self.port:
+                        user_data = json.loads(self.data_store.data.get(user_key, '{}'))
+                        owning_listings = user_data.get("owning_listings", [])
+                        if listing_id not in owning_listings:
+                            owning_listings.append(listing_id)
+                        user_data["owning_listings"] = owning_listings
+                        self.data_store.data[user_key] = json.dumps(user_data)
+                    else:
+                        send_message(ip_user, port_user, f"update_user_owning|{host_id}|{password_hash}|{listing_id}")
+
                 city = listing_json.get("location", "unknown").lower()
 
-                # Zipcode Index
+                # Index by zipcode
                 zipcode = str(int(float(listing_json.get("zipcode", 0))))
                 zip_key = f"zipcode:{zipcode}"
                 zip_key_hash = self.hash(zip_key)
@@ -230,7 +342,7 @@ class Node:
                 else:
                     send_message(ip_zip_idx, port_zip_idx, f"update_zipcode_index|{zipcode}|{listing_id}")
 
-                # City index
+                # Index by city
                 city_key = f"city:{city}"
                 city_key_hash = self.hash(city_key)
                 city_succ = self.find_successor(city_key_hash)
@@ -247,6 +359,127 @@ class Node:
                 result = f"Listing {listing_id} added."
             else:
                 result = send_message(ip, port, message)
+
+        elif operation == "update_user_owning":
+            host_id = args[0]
+            password_hash = args[1]
+            listing_id = args[2]  # Fixed: was mistakenly set to args[1] before
+            user_key = f"user:{host_id}:{password_hash}"
+            
+            # Retrieve existing user data, or initialize if not found
+            user_data = json.loads(self.data_store.data.get(user_key, '{}'))
+            owning_listings = user_data.get("owning_listings", [])
+            
+            if listing_id not in owning_listings:
+                owning_listings.append(listing_id)
+            
+            user_data["owning_listings"] = owning_listings
+            self.data_store.data[user_key] = json.dumps(user_data)
+            
+            result = f"Updated owning listings for {host_id}"
+
+        elif operation == "register_user":
+
+            user_json = json.loads(args[0])
+            password_hash = user_json["host_password"]
+            host_id = user_json["host_id"]
+            user_key = f"user:{host_id}:{password_hash}"
+            key_hash = self.hash(user_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+            print("RECEIVED REGISTER USER.. ", host_id, " " ,password_hash)
+
+            if ip == self.ip and port == self.port:
+                user_data = {
+                    "host_id": host_id,
+                    "host_name": user_json.get("host_name", ""),
+                    "owning_listings": [],
+                    "currently_renting": [],
+                    "password_hash": password_hash
+                }
+                self.data_store.data[user_key] = json.dumps(user_data)
+                print("Added user: ", user_key, " here..")
+
+                result = user_data
+            else:
+                result = send_message(ip, port, message)
+
+            if isinstance(result, dict):
+                return json.dumps(result)
+            return str(result)
+        elif operation == "update_user_info":
+            id = args[0]
+            password_hash = args[1]
+            user_key = f"user:{id}:{password_hash}"
+            key_hash = self.hash(user_key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+            print("Received update request for for user: ", user_key, " with data ", args[2])
+            if ip == self.ip and port == self.port:
+                self.data_store.data[user_key] = args[2]
+            else:
+                result = send_message(ip, port, message)
+            print("About to send user info: ", result)
+        elif operation == "get_user_info":
+            id = args[0]
+            password_hash = args[1]
+            user_key = f"user:{id}:{password_hash}"
+            key_hash = self.hash(user_key)
+            print("looking for user ", user_key, " with hash ", key_hash)
+            succ = self.find_successor(key_hash)
+            print("user ", user_key, " successor in  ", succ)
+            ip, port = self.get_ip_port(succ)
+
+            if ip == self.ip and port == self.port:
+                result = self.data_store.data.get(user_key, "NOT FOUND")
+            else:
+                result = send_message(ip, port, message)
+            print("About to send user info: ", result)
+
+        elif operation == "book_listing":
+            booking_json = json.loads(args[0])
+            booking_id = booking_json["listing_id"]
+            key = f"booking:{booking_id}"
+            key_hash = self.hash(key)
+            succ = self.find_successor(key_hash)
+            ip, port = self.get_ip_port(succ)
+            renter_id = booking_json.get("id", "")
+            renter_password = booking_json.get("renter_password", "")
+            #print("Looking for user: ", renter_id, renter_password)
+            user_key = f"user:{renter_id}:{renter_password}"
+            user_exists = False
+            user_data = {}
+            try:
+                print("Sending user info message to ", ip, " ", port)
+                user_data_resp = str(send_message(ip, port, f"get_user_info|{renter_id}|{renter_password}"))
+                user_data = json.loads(user_data_resp)
+                user_exists = True
+            except:
+                print("Unknown user requesting booking..")
+                    
+            
+            if user_exists and ip == self.ip and port == self.port:
+                self.data_store.insert(key, json.dumps(booking_json))
+                # Update currently_renting for renter
+                listing_id = booking_json.get("listing_id", "")
+                print("UPDATING RENTING for: ", renter_id, " to ", listing_id)
+                if renter_password and listing_id:
+                    currently_renting = user_data.get("currently_renting", [])
+                    print("OLD USER_DATA: ", user_data)
+                    if listing_id not in currently_renting:
+                        currently_renting.append(listing_id)
+                    user_data["currently_renting"] = currently_renting
+                    print("NEW USER_DATA: ", user_data)
+                    key_hash = self.hash(user_key)
+                    user_succ = self.find_successor(key_hash)
+                    u_ip, u_port = self.get_ip_port(succ)
+                    res_user = send_message(u_ip, u_port, "update_user_info|" + renter_id + "|" + renter_password + "|" + json.dumps(user_data))
+
+                result = f"Booking {booking_id} added."
+            elif user_exists:
+                result = send_message(ip, port, message)
+            else:
+                result = "Unknown user.."
 
         elif operation == "update_city_index":
             city = args[0].lower()
@@ -295,25 +528,33 @@ class Node:
 
         elif operation == "get_listing_by_id":
             id = args[0]
-            key = f"listing:{id}"
+            key = f"listing:{id}" # listing:listing:{id}
             keyHash = self.hash(key)
 
             print("query for ", key, " with hash ", keyHash)
             # Find the appropriate node in the ring
             succ = self.find_successor(int(keyHash))
             ip, port = self.get_ip_port(succ)
-
+            print("For query ", key, " successor in ", port)
             if ip == self.ip and port == self.port:
                 raw = self.data_store.data.get(key)
             else:
-                raw = send_message(ip, port, f"search_server|listing:{key}")
+                raw = send_message(ip, port, f"search_server|{key}")
             print("QUERY - ", id, " about to send: ", raw)
 
             if not raw or raw == "NOT FOUND":
                 return "Listing not found"
 
-            lj = json.loads(raw)
-            return lj
+            return raw
+        
+        elif operation == "check_booked":
+            listing_id = args[0]
+            bookings = {key: value for key, value in self.data_store.data.items() if key.startswith("booking:")}
+            for booking_id, booking_data in bookings.items():
+                if json.loads(booking_data).get("listing_id") == listing_id:
+                    return "booked"
+            return "available"
+
 
         elif operation == "book_listing":
             booking_json = json.loads(args[0])
@@ -357,7 +598,6 @@ class Node:
             else:
                 result = send_message(ip, port, message)
 
-        # Remaining default Chord operations...
         elif operation == 'insert_server':
             data = args[0].split(":")
             key = data[0]
@@ -407,19 +647,19 @@ class Node:
 
         elif operation == "get_id":
             result = self.get_id()
-
+        elif operation == "get_storage_info":
+            result = str(self.data_store.amount) + " bytes"
         elif operation == "notify":
             self.notify(int(args[0]), args[1], args[2])
             result = "Notified"
         else:
             result = "Unknown op"
 
-
         return str(result)
 
     def serve_requests(self, conn, addr):
         '''
-        The serve_requests fucntion is used to listen to incomint requests on the open port and then reply to them it
+        The serve_requests fucntion is used to listen to incoming requests on the open port and then reply to them it
         takes as arguments the connection and the address of the connected device.
         '''
         with conn:
@@ -444,12 +684,15 @@ class Node:
                 return
 
             # otherwise, delegate to your existing process_requests()
+            print("processing request: ", msg)
             response = self.process_requests(msg)
             # if you returned bytes, send raw, else utf‑8 encode
-            if isinstance(response, bytes):
-                conn.sendall(response)
-            else:
-                conn.sendall(response.encode('utf-8'))
+            print("Sending response: ", response, " to ", conn)
+            # if isinstance(response, bytes):
+            #     conn.sendall(response)
+            # else:
+            conn.sendall(response.encode('utf-8'))
+            conn.close()
 
 
     def _handle_upload_image(self, conn, listing_hash, filename, file_size):
@@ -498,8 +741,11 @@ class Node:
             s.listen()
             while True:
                 conn, addr = s.accept()
-                t = threading.Thread(target=self.serve_requests, args=(conn,addr))
-                t.start()
+                #print("Accepted connection: ", conn)
+                # uses threadpool to limit connections
+                threadPool.submit(self.serve_requests, conn, addr)
+                #t = threading.Thread(target=self.serve_requests, args=(conn,addr))
+                #t.start()
 
     def insert_key(self,key,value):
         '''
@@ -512,7 +758,7 @@ class Node:
         # print("Succ found for inserting key" , id_of_key , succ)
         ip,port = self.get_ip_port(succ)
         send_message(ip,port,"insert_server|" + str(key) + ":" + str(value) )
-        return "Inserted at node id " + str(Node(ip,port).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
+        return "Inserted at node id " + str(Node(ip,port, False).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
 
     def delete_key(self,key):
         '''
@@ -525,7 +771,7 @@ class Node:
         # print("Succ found for deleting key" , id_of_key , succ)
         ip,port = self.get_ip_port(succ)
         send_message(ip,port,"delete_server|" + str(key) )
-        return "deleted at node id " + str(Node(ip,port).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
+        return "deleted at node id " + str(Node(ip,port, False).id) + " key was " + str(key) + " key hash was " + str(id_of_key)
 
 
     def search_key(self,key):
@@ -544,6 +790,7 @@ class Node:
 
     def join_request_from_other_node(self, node_id):
         """ will return successor for the node who is requesting to join """
+        print("Receving join request from: ", node_id)
         return self.find_successor(node_id)
 
     def join(self,node_ip, node_port):
@@ -553,9 +800,10 @@ class Node:
         smaller than its id from its successor.
         '''
         data = 'join_request|' + str(self.id)
+        print("JOINING NODE: ", node_ip, ":", node_port)
         succ = send_message(node_ip,node_port,data)
         ip,port = self.get_ip_port(succ)
-        self.successor = Node(ip,port)
+        self.successor = Node(ip,port, False)
         self.finger_table.table[0][1] = self.successor
         self.predecessor = None
 
@@ -567,31 +815,43 @@ class Node:
                     # print(key_value.split('|'))
                     self.data_store.data[key_value.split('|')[0]] = key_value.split('|')[1]
 
-    def find_predecessor(self, search_id: str) -> str:
-        '''
-        The find_predecessor function provides the predecessor of any value in the ring given its id.
-        '''
-        if search_id == self.id:
+    def find_predecessor(self, search_id):
+        if self.id == search_id:
             return str(self.nodeinfo)
-        # print("finding pred for id ", search_id)
 
-
-        assert self.successor is not None and isinstance(self.successor, Node), f"Successor does not exist for node {self}"
-
-
-
-        if self.get_forward_distance(self.successor.id) > self.get_forward_distance(search_id): # Base Case: Are we the predecessor ?
-            return self.nodeinfo.__str__()
-        else:
-            new_node_hop = self.closest_preceding_node(search_id)
-            # print("new node hop finding hops in find predecessor" , new_node_hop.nodeinfo.__str__() )
-            if new_node_hop is None:
-                return "None"
-            ip, port = self.get_ip_port(new_node_hop.nodeinfo.__str__())
+        while not self.in_range(search_id, self.id, self.successor.id, inclusive_start=False, inclusive_end=True):
+            next_hop = self.closest_preceding_node(search_id)
+            if next_hop is None:
+                break
+            ip, port = self.get_ip_port(str(next_hop.nodeinfo))
             if ip == self.ip and port == self.port:
-                return self.nodeinfo.__str__()
-            data = send_message(ip , port, "find_predecessor|"+str(search_id))
-            return data
+                break
+            return send_message(ip, port, f"find_predecessor|{search_id}")
+        
+        return str(self.nodeinfo)
+
+    def in_range(self, id, start, end, inclusive_start, inclusive_end):
+        """ Checks if id ∈ (start, end) (mod 2^m) """
+        if start == end:
+            return True  # entire ring
+
+        if start < end:
+            if inclusive_start and inclusive_end:
+                return start <= id <= end
+            if inclusive_start and not inclusive_end:
+                return start <= id < end
+            if not inclusive_start and inclusive_end:
+                return start < id <= end
+            return start < id < end
+        else:
+            # Ring wraps around
+            if inclusive_start and inclusive_end:
+                return id >= start or id <= end
+            if inclusive_start and not inclusive_end:
+                return id >= start or id < end
+            if not inclusive_start and inclusive_end:
+                return id > start or id <= end
+            return id > start or id < end
 
     def find_successor(self, search_id):
         '''
@@ -647,43 +907,32 @@ class Node:
         '''
         while True:
             if self.successor is None:
-                time.sleep(10)
+                time.sleep(1)
                 continue
             data = "get_predecessor"
+            print("stabalizing...")
+
 
             if self.successor.ip == self.ip  and self.successor.port == self.port:
-                time.sleep(10)
+                time.sleep(1)
             result = send_message(self.successor.ip , self.successor.port , data)
             if result == "None" or len(result) == 0:
                 send_message(self.successor.ip , self.successor.port, "notify|"+ str(self.id) + "|" + self.nodeinfo.__str__())
                 continue
 
             # print("found predecessor of my sucessor", result, self.successor.id)
+
             ip , port = self.get_ip_port(result)
+            if ip == self.ip and port == self.port:
+                time.sleep(1)
+                continue
             result = int(send_message(ip,port,"get_id"))
             if self.get_backward_distance(result) > self.get_backward_distance(self.successor.id):
                 # print("changing my succ in stablaize", result)
-                self.successor = Node(ip,port)
+                self.successor = Node(ip,port, False)
                 self.finger_table.table[0][1] = self.successor
             send_message(self.successor.ip , self.successor.port, "notify|"+ str(self.id) + "|" + self.nodeinfo.__str__())
-            print("===============================================")
-            print("STABILIZING")
-            print("===============================================")
-            print("ID: ", self.id)
-            if self.successor is not None:
-                print("Successor ID: " , self.successor.id)
-            if self.predecessor is not None:
-                print("predecessor ID: " , self.predecessor.id)
-            print("===============================================")
-            print("=============== FINGER TABLE ==================")
-            self.finger_table.print()
-            print("===============================================")
-            print("DATA STORE")
-            print("===============================================")
-            print(str(self.data_store.data))
-            print("===============================================")
-            print("+++++++++++++++ END +++++++++++++++++++++++++++\n\n\n")
-            time.sleep(10)
+            time.sleep(1)
 
     def notify(self, node_id , node_ip , node_port):
         '''
@@ -711,17 +960,16 @@ class Node:
         ring it can properly mark that node in its finger table.
         '''
         while True:
-
             random_index = random.randint(1,m-1)
             finger = self.finger_table.table[random_index][0]
             # print("in fix fingers , fixing index", random_index)
             data = self.find_successor(finger)
             if data == "None":
-                time.sleep(10)
+                time.sleep(5)
                 continue
             ip,port = self.get_ip_port(data)
-            self.finger_table.table[random_index][1] = Node(ip,port)
-            time.sleep(10)
+            self.finger_table.table[random_index][1] = Node(ip,port, shouldListen=False)
+            time.sleep(5)
     def get_successor(self):
         '''
         This function is used to return the successor of the node
@@ -804,32 +1052,40 @@ class FingerTable:
                 print('Entry: ', index, " Interval start: ", entry[0]," Successor: ", entry[1].id)
 
 
-def send_message(ip, port, message):
-    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    #
-    # delay
-    #
-    # connect to server on local computer
-    s.connect((ip,port))
-    s.send(message.encode('utf-8'))
-    data = s.recv(1024)
-    s.close()
-    return data.decode("utf-8")
+def send_message(ip, port, message, retries=3, delay=1):
+    for attempt in range(retries):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+
+                s.connect((ip, port))
+                #print("making connection to ", s, " with message: ", message)
+                time.sleep(0.3) # simulate some latency..
+                s.sendall(message.encode())
+                res = s.recv(4096).decode()
+                #print("closing connection to addr: ", s)
+                s.close()
+                return res
+        except ConnectionRefusedError as e:
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                print(f"[WARN] Connection refused to {ip}:{port} after {retries} attempts.")
+                return "ERROR: Connection refused"
 
 def start_flask_app():
-    flask_app.run(host="0.0.0.0", port=5000, debug=False)
+    flask_app.run(host="0.0.0.0", port=5080, debug=False)
 
 
 
 ip = "127.0.0.1"
-#flask_thread = threading.Thread(target=start_flask_app)
-#flask_thread.daemon = True  # Daemon thread will exit when the main program exits
-#flask_thread.start()
+flask_thread = threading.Thread(target=start_flask_app)
+flask_thread.daemon = True  # Daemon thread will exit when the main program exits
+flask_thread.start()
 # This if statement is used to check if the node joining is the first node of the ring or not
 
 if len(sys.argv) == 3:
     print("JOINING RING")
-    node = Node(ip, int(sys.argv[1]))
+    node = Node(ip, int(sys.argv[1]), True)
 
     node.join(ip,int(sys.argv[2]))
     node.start()
@@ -837,7 +1093,7 @@ if len(sys.argv) == 3:
 if len(sys.argv) == 2:
     assert(len(sys.argv) >= 1)
     print(f"CREATING RING in {ip}:{sys.argv[1]}")
-    node = Node(ip, int(sys.argv[1]))
+    node = Node(ip, int(sys.argv[1]), True)
 
     node.predecessor = Node(ip,node.port)
     node.successor = Node(ip,node.port)

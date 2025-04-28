@@ -1,21 +1,33 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { bookListing, loginUser } from "../utils/handle-apis";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { requestMyListings } from "../utils/handle-apis";
 
-const GuestListings: React.FC = () => {
+const Bookings: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const user = location.state?.user;
-  const { listings = [] } = location.state || {};
+  const [listings, setListings] = useState<any[]>([]);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      try {
+        const response = await requestMyListings(user, "guest");
+        setListings(response);
+      } catch (error) {
+        console.error("Failed to fetch listings:", error);
+      }
+    };
+
+    fetchListings();
+  }, [user]);
 
   const openModal = (listing: any) => {
     setSelectedListing({
       ...listing,
       currentImageIndex: 0,
     });
-    console.log("User:", user);
     setIsModalOpen(true);
   };
 
@@ -27,13 +39,13 @@ const GuestListings: React.FC = () => {
   return (
     <div className="w-screen h-screen flex justify-center items-center bg-gray-600">
       <button
-        onClick={() => navigate("/guest", { state: { user: user } })}
+        onClick={() => navigate("/guest", { state: { user } })}
         className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
       >
         Back
       </button>
       <div className="w-full max-w-4xl bg-white p-8 rounded-lg shadow-md text-center text-black">
-        <h1 className="text-3xl font-bold">Nearby Listings</h1>
+        <h1 className="text-3xl font-bold">My Bookings</h1>
         <div className="mt-6 max-h-96 overflow-y-auto">
           {listings.length > 0 ? (
             listings.map((listing: any, index: number) => (
@@ -65,7 +77,6 @@ const GuestListings: React.FC = () => {
               <p className="text-gray-500 mb-2">Host: {selectedListing.host_name}</p>
               <p className="text-gray-500 mb-2">Room Type: {selectedListing.room_type}</p>
               <p className="text-gray-500 mb-2">Minimum Nights: {selectedListing.minimum_nights}</p>
-              <div className="flex space-x-4 mt-4">
               {/* Close Button */}
               <button
                 onClick={closeModal}
@@ -73,28 +84,6 @@ const GuestListings: React.FC = () => {
               >
                 Close
               </button>
-
-              {/* Book Listing Button */}
-              {selectedListing.booked === "available" ? (
-                <button
-                  onClick={async () => {
-                    console.log("Booking listing with user data: ");
-                    console.log(user);
-                    if (await bookListing(user.host_id, user.password_hash, selectedListing.id)) {
-                      const result = await loginUser({ id: user.host_id, password_hash: user.password_hash });
-                      navigate("/guest/", { state: { user: result } });
-                    } else {
-                      alert("Booking failed. Please try again.");
-                    }
-                  }}
-                  className="text-white px-4 py-2 rounded-md hover:bg-blue-600 !bg-blue-500"
-                >
-                  Book Listing
-                </button>
-              ) : (
-                <p className="text-gray-500 px-4 py-2 rounded-md bg-gray-200">Reserved</p>
-              )}
-            </div>
             </div>
 
             {/* Image and Controls */}
@@ -151,4 +140,4 @@ const GuestListings: React.FC = () => {
   );
 };
 
-export default GuestListings;
+export default Bookings;

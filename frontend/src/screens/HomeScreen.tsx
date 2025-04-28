@@ -11,16 +11,16 @@ const HomeScreen: React.FC = () => {
         <div className="mt-6 flex flex-col gap-4">
           <button
             className="w-full py-2 !bg-blue-500 text-white rounded-md hover:!bg-blue-600"
-            onClick={() => navigate("/host")}
+            onClick={() => navigate("/login", { state: { userType: "host" } })}
           >
             Enter as Host
           </button>
-          <button
+            <button
             className="w-full py-2 !bg-green-500 text-white rounded-md hover:!bg-blue-600"
-            onClick={() => navigate("/guest")}
-          >
+            onClick={() => navigate("/login", { state: { userType: "guest" } })}
+            >
             Enter as Guest
-          </button>
+            </button>
         </div>
       </div>
     </div>
