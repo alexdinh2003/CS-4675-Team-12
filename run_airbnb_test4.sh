@@ -15,18 +15,7 @@ port9=9400
 port10=9450
 port11=9500
 port12=9550
-port13=9600
-port14=9650
-port15=9700
-port16=9750
-port17=9800
-port18=9850
-port19=9900
-port20=9950
-port21=10000
-port22=10050
-port23=10100
-port24=10150
+
 
 # Logs
 log_dir="logs"
@@ -39,21 +28,21 @@ echo "Running node in $port1"
 nohup python3 -u Node_DHT.py $port1 > "$log_dir/node1.log" 2>&1 &
 sleep 1
 
+
+
 # Start all other nodes (join using port1)
-for i in {2..24}
+for i in {2..12}
 do
     port_var="port$i"
     port=${!port_var}
     echo "Running node in $port"
-    nohup python3 -u Node_DHT.py $port $port1 > "$log_dir/node${i}.log" 2>&1 &
-    sleep 1
+    nohup python3 -u Node_DHT.py $port $port1 > "$log_dir/$port.log" 2>&1 &
 done
 
 
 
-# 💤 Allow user data to propagate
-echo "Waiting for user registration to stabilize..."
-sleep 5
+echo "Waiting for Nodes to stabilize..."
+sleep 20
 
 # Helper
 send() {
@@ -79,10 +68,19 @@ users=(
 '{"host_id":"u10","host_password":"pw_u10","host_name":"Jack"}'
 )
 
+pids=()
 for i in "${!users[@]}"; do
     user="${users[$i]}"
     port="${ports[$(( i % ${#ports[@]} ))]}"
-    send "register_user|$user" "$port"
+    
+    (
+        send "register_user|$user" "$port"
+    ) &
+    pids+=($!)
+done
+
+for pid in "${pids[@]}"; do
+    wait "$pid"
 done
 
 # 💤 Allow user data to propagate
@@ -106,10 +104,19 @@ listings=(
 '{"id":"l11","title":"SF Cozy Cottage 2","host_id":"u10","host_name":"Jack","host_password":"pw_u10","location":"San Francisco","latitude":37.7,"longitude":-122.4,"room_type":"Cottage","price":95,"minimum_nights":1,"number_of_reviews":7,"last_review":"2023-04-01","reviews_per_month":0.2,"calculated_host_listings_count":1,"availability_365":150,"zipcode":94121}'
 )
 
+pids=()
 for i in "${!listings[@]}"; do
     listing="${listings[$i]}"
     port="${ports[$(( i % ${#ports[@]} ))]}"
-    send "add_listing|$listing" "$port"
+    
+    (
+        send "add_listing|$listing" "$port"
+    ) &
+    pids+=($!)
+done
+
+for pid in "${pids[@]}"; do
+    wait "$pid"
 done
 
 # 💤 Allow user data to propagate
@@ -124,16 +131,24 @@ bookings=(
 '{"id":"u3","renter_password":"pw_u3","listing_id":"l2","date":"2025-04-21"}'
 '{"id":"u4","renter_password":"pw_u4","listing_id":"l3","date":"2025-04-22"}'
 )
-
+pids=()
 for i in "${!bookings[@]}"; do
     booking="${bookings[$i]}"
     port="${ports[$(( i % ${#ports[@]} ))]}"
-    send "book_listing|$booking" "$port"
+    
+    (
+        send "book_listing|$booking" "$port"
+    ) &
+    pids+=($!)
+done
+
+for pid in "${pids[@]}"; do
+    wait "$pid"
 done
 
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 5
+sleep 10
 # ========== VERIFY USER INFO ==========
 echo
 echo "=== Verifying Users' Currently Renting Lists ==="
@@ -168,7 +183,7 @@ for zip in "${zips[@]}"; do
 done
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 5
+sleep 10
 
 # ========== QUERY BY ZIPCODE ==========
 echo
@@ -181,7 +196,7 @@ for zip in "${zips[@]}"; do
 done
 # 💤 Allow user data to propagate
 echo "Waiting for user registration to stabilize..."
-sleep 5
+sleep 10
 
 # ========== TEARDOWN ==========
 # echo

@@ -193,11 +193,16 @@ m = 7
 
 class DataStore:
     def __init__(self):
+        self.amount = 0
         self.data = {}
     def insert(self, key, value):
         self.data[key] = value
+        self.amount += len(str(key)) + len(str(value))
     def delete(self, key):
+        if key in self.data:
+            self.amount -= len(key) - len(self.data[key])
         del self.data[key]
+
     def search(self, search_key):
         # print('Search key', search_key)
 
@@ -219,7 +224,7 @@ class NodeInfo:
 connPool = {
 
 }
-threadPool = ThreadPoolExecutor(max_workers=32)
+threadPool = ThreadPoolExecutor(max_workers=64)
 
 
 # The class Node is used to manage the each node that, it contains all the information about the node like ip, port,
@@ -296,9 +301,12 @@ class Node:
             key_hash = self.hash(key)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
+            print("For key: ", key, " and hash ", key_hash, " successor in ", port)
 
             if ip == self.ip and port == self.port:
                 self.data_store.insert(key, json.dumps(listing_json))
+                print("Listing added: ")
+                print(self.data_store.data)
 
                 # Update user listings using password hash
                 if password_hash:
@@ -371,6 +379,7 @@ class Node:
             result = f"Updated owning listings for {host_id}"
 
         elif operation == "register_user":
+
             user_json = json.loads(args[0])
             password_hash = user_json["host_password"]
             host_id = user_json["host_id"]
@@ -378,6 +387,7 @@ class Node:
             key_hash = self.hash(user_key)
             succ = self.find_successor(key_hash)
             ip, port = self.get_ip_port(succ)
+            print("RECEIVED REGISTER USER.. ", host_id, " " ,password_hash)
 
             if ip == self.ip and port == self.port:
                 user_data = {
@@ -388,6 +398,8 @@ class Node:
                     "password_hash": password_hash
                 }
                 self.data_store.data[user_key] = json.dumps(user_data)
+                print("Added user: ", user_key, " here..")
+
                 result = user_data
             else:
                 result = send_message(ip, port, message)
@@ -413,7 +425,9 @@ class Node:
             password_hash = args[1]
             user_key = f"user:{id}:{password_hash}"
             key_hash = self.hash(user_key)
+            print("looking for user ", user_key, " with hash ", key_hash)
             succ = self.find_successor(key_hash)
+            print("user ", user_key, " successor in  ", succ)
             ip, port = self.get_ip_port(succ)
 
             if ip == self.ip and port == self.port:
@@ -431,11 +445,12 @@ class Node:
             ip, port = self.get_ip_port(succ)
             renter_id = booking_json.get("id", "")
             renter_password = booking_json.get("renter_password", "")
-            print("Looking for user: ", renter_id, renter_password)
+            #print("Looking for user: ", renter_id, renter_password)
             user_key = f"user:{renter_id}:{renter_password}"
             user_exists = False
             user_data = {}
             try:
+                print("Sending user info message to ", ip, " ", port)
                 user_data_resp = str(send_message(ip, port, f"get_user_info|{renter_id}|{renter_password}"))
                 user_data = json.loads(user_data_resp)
                 user_exists = True
@@ -520,7 +535,7 @@ class Node:
             # Find the appropriate node in the ring
             succ = self.find_successor(int(keyHash))
             ip, port = self.get_ip_port(succ)
-
+            print("For query ", key, " successor in ", port)
             if ip == self.ip and port == self.port:
                 raw = self.data_store.data.get(key)
             else:
@@ -530,8 +545,7 @@ class Node:
             if not raw or raw == "NOT FOUND":
                 return "Listing not found"
 
-            lj = json.loads(raw)
-            return lj
+            return raw
         
         elif operation == "check_booked":
             listing_id = args[0]
@@ -633,7 +647,8 @@ class Node:
 
         elif operation == "get_id":
             result = self.get_id()
-
+        elif operation == "get_storage_info":
+            result = str(self.data_store.amount) + " bytes"
         elif operation == "notify":
             self.notify(int(args[0]), args[1], args[2])
             result = "Notified"
@@ -672,12 +687,11 @@ class Node:
             print("processing request: ", msg)
             response = self.process_requests(msg)
             # if you returned bytes, send raw, else utf‑8 encode
-            if isinstance(response, bytes):
-                print("Sending response")
-                conn.sendall(response)
-            else:
-                conn.sendall(response.encode('utf-8'))
-            print("Closed connection: ", conn)
+            print("Sending response: ", response, " to ", conn)
+            # if isinstance(response, bytes):
+            #     conn.sendall(response)
+            # else:
+            conn.sendall(response.encode('utf-8'))
             conn.close()
 
 
@@ -727,7 +741,7 @@ class Node:
             s.listen()
             while True:
                 conn, addr = s.accept()
-                print("Accepted connection: ", conn)
+                #print("Accepted connection: ", conn)
                 # uses threadpool to limit connections
                 threadPool.submit(self.serve_requests, conn, addr)
                 #t = threading.Thread(target=self.serve_requests, args=(conn,addr))
@@ -1042,11 +1056,13 @@ def send_message(ip, port, message, retries=3, delay=1):
     for attempt in range(retries):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+
                 s.connect((ip, port))
-                print("making connection to ", s, " with message: ", message)
+                #print("making connection to ", s, " with message: ", message)
+                time.sleep(0.3) # simulate some latency..
                 s.sendall(message.encode())
                 res = s.recv(4096).decode()
-                print("closing connection to addr: ", s)
+                #print("closing connection to addr: ", s)
                 s.close()
                 return res
         except ConnectionRefusedError as e:

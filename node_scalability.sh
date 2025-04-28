@@ -3,8 +3,8 @@ set -euo pipefail
 
 NUM_USERS=50
 NUM_LISTINGS=50
-NUM_NODES=3
-NUM_BOOKINGS=1
+NUM_NODES=12
+NUM_BOOKINGS=3
 BASE_PORT=10000
 log_dir="logs"
 mkdir -p "$log_dir"
@@ -72,7 +72,7 @@ done
 user_end=$(date +%s.%N)
 
 echo "Waiting after user registration..."
-sleep 15
+sleep 5
 
 
 listings=()
