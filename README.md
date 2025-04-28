@@ -17,6 +17,7 @@ python frontend_node_backend.py
 ```
 
 ### Terminal 3:
+This requires node 18 or higher. Some of us used nvm to change to version 18 when running this script.
 ```bash
 cd frontend
 npm run dev
